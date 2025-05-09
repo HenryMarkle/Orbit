@@ -9,7 +9,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED YES)
 add_subdirectory(libs/lua)
 add_subdirectory(libs/spdlog)
 
-file(GLOB MAIN_SOURCES src/*.cpp)
+# raylib
+if(WIN32)
+  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libs/raylib_mingw/include)
+  link_directories(${CMAKE_CURRENT_SOURCE_DIR}/libs/raylib_mingw/lib)
+else()
+  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/libs/raylib)
+endif()
+
+file(GLOB MAIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 
 add_executable(
     Orbit 
@@ -18,7 +26,20 @@ add_executable(
 )
 
 target_include_directories(Orbit PRIVATE include ${CMAKE_CURRENT_SOURCE_DIR}/libs/lua/src)
+
+if(WIN32)
+  target_link_libraries(
+    Orbit
+    PRIVATE
+    ${CMAKE_SOURCE_DIR}/libs/raylib_mingw/lib/libraylib.a
+    gdi32
+    winmm
+  )
+else()
+  target_link_libraries(Orbit PRIVATE raylib)
+endif()
 target_link_libraries(Orbit PRIVATE lua spdlog)
+
 
 target_compile_definitions(
   Orbit
