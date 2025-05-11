@@ -35,11 +35,16 @@ int main(int, char**) {
 
 	logger->info("------------------------------------ starting program");
     
+	logger->info("initializing runtime");
+
 	auto rt = Orbit::Lua::LuaRuntime();
 
-    rt.exec_str("print(double(5))");
+	logger->info("loading scripts");
+
 	
 	logger->info("------------------------------------ program terminated");
 
     return 0;
 }
+
+
