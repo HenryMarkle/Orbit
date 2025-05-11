@@ -12,16 +12,16 @@ using std::make_shared;
 
 int main(int, char**) {
     shared_ptr<Orbit::Paths> paths = make_shared<Orbit::Paths>();
-
+	
     std::shared_ptr<spdlog::logger> logger = nullptr;
-
+	
     // Initializing logging
     try {
 
         #ifdef _WIN32
         logger = spdlog::basic_logger_mt("main logger", (paths->logs() / "logs.txt").string());
         #else
-        logger = spdlog::basic_logger_mt("main logger", (paths->logs() / "logs.txt"));
+        logger = spdlog::basic_logger_mt("main", (paths->logs() / "logs.txt"));
         #endif
 
         #ifdef DEBUG
@@ -33,9 +33,13 @@ int main(int, char**) {
         throw ex;
     }
 
-    auto rt = Orbit::Lua::LuaRuntime();
+	logger->info("------------------------------------ starting program");
+    
+	auto rt = Orbit::Lua::LuaRuntime();
 
     rt.exec_str("print(double(5))");
+	
+	logger->info("------------------------------------ program terminated");
 
     return 0;
 }
