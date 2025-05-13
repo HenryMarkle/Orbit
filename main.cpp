@@ -29,9 +29,11 @@ int main(int, char**) {
         #endif
 
     } catch (const spdlog::spdlog_ex &ex) {
-        std::cout << "Initializing logger has failed" << std::endl;
+        std::cout << "initializing logger has failed" << std::endl;
         throw ex;
     }
+
+
 
 	logger->info("------------------------------------ starting program");
     
@@ -41,6 +43,7 @@ int main(int, char**) {
 
 	logger->info("loading scripts");
 
+	rt.load_directory(paths->scripts());
 	
 	logger->info("------------------------------------ program terminated");
 
