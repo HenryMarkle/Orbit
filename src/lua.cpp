@@ -19,23 +19,6 @@ extern "C" {
 
 namespace Orbit::Lua {
 
-Rectangle Rectangle::operator+(Rectangle const &r) {
-	return Rectangle(this->left + r.left, this->top + r.top, this->right + r.right, this->bottom + r.bottom);
-}
-
-Rectangle Rectangle::operator-(Rectangle const &r) {
-	return Rectangle(this->left - r.left, this->top - r.top, this->right - r.right, this->bottom - r.bottom);
-}
-
-std::ostream &operator<<(std::ostream o, const Rectangle &r) {
-	return o << "Rectangle("
-		<< std::setprecision(3) << r.left  << ','
-		<< std::setprecision(3) << r.top   << ','
-		<< std::setprecision(3) << r.right << ','
-		<< std::setprecision(3) << r.bottom
-		<< ')';
-}
-
 std::ostream &operator<<(std::ostream &o, const Color &c) {
 	return o << "Color(" << c.r << ',' << c.g << ',' << c.b << ')';
 }
@@ -43,6 +26,7 @@ std::ostream &operator<<(std::ostream &o, const Color &c) {
 void LuaRuntime::_register_lib() {
 	_register_vector();
 	_register_point();	
+	_register_rectangle();
 	_register_utils();
 }
 

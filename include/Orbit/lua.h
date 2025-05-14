@@ -20,18 +20,7 @@ struct Color {
 	inline Color(short r, short g, short b) : r(r), g(g), b(b) {}
 };
 
-struct Rectangle {
-	float left, top, right, bottom;
-
-	Rectangle operator+(Rectangle const &);
-	Rectangle operator-(Rectangle const &);
-
-	inline Rectangle() : left(0), top(0), right(0), bottom(0) {}
-	inline Rectangle(float left, float top, float right, float bottom) : left(left), top(top), right(right), bottom(bottom) {}
-};
-
 std::ostream &operator<<(std::ostream &, const Color &);
-std::ostream &operator<<(std::ostream &, const Rectangle &);
 
 class LuaRuntime {
 

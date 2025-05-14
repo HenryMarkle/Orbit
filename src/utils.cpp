@@ -155,7 +155,7 @@ int make_point(lua_State *L) {
 
 	Point *p = static_cast<Point *>(lua_newuserdata(L, sizeof(Point)));
 	
-	if ((arg = static_cast<Point *>(luaL_checkudata(L, 1, "point")))) {
+	if ((arg = static_cast<Point *>(luaL_testudata(L, 1, "point")))) {
 		p->x = arg->x;
 		p->y = arg->y;
 	} else {
@@ -169,7 +169,46 @@ int make_point(lua_State *L) {
 	return 1;
 
 }
-int make_rect(lua_State *L) {}
+int make_rect(lua_State *L) {
+	Vector **v = nullptr;
+
+	Point *p1 = nullptr;
+	Point *p2 = nullptr;
+
+#ifdef __WIN32
+	Vector *p = static_cast<Vector *>(_aligned_malloc(16, sizeof(Vector)));
+#else
+	Vector *p = static_cast<Vector *>(aligned_alloc(16, sizeof(Vector)));
+#endif
+
+	if ((v = static_cast<Vector **>(luaL_testudata(L, 1, "rect"))) != nullptr) {
+		memcpy(p->data, (*v)->data, sizeof(float) * 4);
+	} else if ((v = static_cast<Vector **>(luaL_testudata(L, 1, "vector"))) != nullptr) {
+		memcpy(p->data, (*v)->data, sizeof(float) * 4);
+	} else if (
+			(p1 = static_cast<Point *>(luaL_testudata(L, 1, "point"))) != nullptr &&
+			(p2 = static_cast<Point *>(luaL_testudata(L, 2, "point"))) != nullptr
+		) {
+		
+		p->data[0] = p1->x;
+		p->data[1] = p1->y;
+		p->data[2] = p2->x;
+		p->data[3] = p2->y;
+	} else {
+		p->data[0] = lua_tonumber(L, 1);
+		p->data[1] = lua_tonumber(L, 2);
+		p->data[2] = lua_tonumber(L, 3);
+		p->data[3] = lua_tonumber(L, 4);
+	}
+
+	Vector **udata = static_cast<Vector **>(lua_newuserdata(L, sizeof(Vector*)));
+	*udata = p;
+
+	luaL_getmetatable(L, "rect");
+	lua_setmetatable(L, -2);
+	
+	return 1;
+}
 
 namespace Orbit::Lua {
 
@@ -186,6 +225,9 @@ void LuaRuntime::_register_utils() {
 
  	lua_pushcfunction(L, make_point);
 	lua_setglobal(L, "point");
+
+	lua_pushcfunction(L, make_rect);
+	lua_setglobal(L, "rect");
 }
 
 };

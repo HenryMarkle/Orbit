@@ -1,5 +1,6 @@
 #include <iostream>
 #include <memory>
+#include <string>
 
 #include <Orbit/lua.h>
 #include <Orbit/paths.h>
@@ -36,7 +37,9 @@ int main(int, char**) {
 
 
 	logger->info("------------------------------------ starting program");
-    
+
+	logger->info(std::string("Orbit v") + APP_VERSION);
+
 	logger->info("initializing runtime");
 
 	auto rt = Orbit::Lua::LuaRuntime();
