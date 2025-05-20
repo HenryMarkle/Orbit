@@ -4,6 +4,7 @@
 #include <Orbit/lua.h>
 #include <Orbit/vector.h>
 #include <Orbit/point.h>
+#include <Orbit/color.h>
 
 extern "C" {
     #include <lua.h>
@@ -13,6 +14,7 @@ extern "C" {
 
 using Orbit::Lua::Vector;
 using Orbit::Lua::Point;
+using Orbit::Lua::Color;
 
 int distance_vector(lua_State *L, const Vector *v1, const Vector *v2) {
 
@@ -209,6 +211,68 @@ int make_rect(lua_State *L) {
 	
 	return 1;
 }
+int make_color(lua_State *L) {
+	int argcount = lua_gettop(L);
+    
+	Color *p = static_cast<Color *>(lua_newuserdata(L, sizeof(Color)));
+	
+	if (argcount == 0) {
+		*p = Color();
+	}
+	else if (argcount == 1) {
+		Color *arg = nullptr;
+
+	
+		if ((arg = static_cast<Color *>(luaL_testudata(L, 1, "color")))) {
+			*p = Color(*arg);
+		}
+		else {
+			p->r = lua_tonumber(L, 1);
+			p->g = 255;
+			p->b = 255;
+			p->a = 255;
+		}
+	}
+	else {
+		*p = Color();
+		
+		if (lua_isnumber(L, 1)) p->r = lua_tonumber(L, 1);
+		if (lua_isnumber(L, 2)) p->g = lua_tonumber(L, 2);
+		if (lua_isnumber(L, 3)) p->b = lua_tonumber(L, 3);
+		if (lua_isnumber(L, 4)) p->a = lua_tonumber(L, 4);
+	}
+	
+	luaL_getmetatable(L, "color");
+	lua_setmetatable(L, -2);
+	
+	return 1;
+}
+
+void define_constant_colors(lua_State *L) {
+	lua_getglobal(L, "_G");
+
+	lua_newtable(L);
+
+	lua_pushstring(L, "__newindex");
+	lua_pushcfunction(L, [](lua_State *L) {
+		const char *key = lua_tostring(L, 2);
+		if (
+				!std::strcmp(key, "WHITE") || !std::strcmp(key, "BLACK") ||
+				!std::strcmp(key, "RED") || !std::strcmp(key, "GREEN") ||
+				!std::strcmp(key, "BLUE") || !std::strcmp(key, "PURPLE")
+		) {
+			return luaL_error(L, "attempt to modify color constant");
+		}
+		lua_rawset(L, 1);
+		return 0;
+	});
+	lua_settable(L, -3);
+
+	lua_setmetatable(L, -2);
+	lua_pop(L, 1);
+
+	// define constant colors here
+}
 
 namespace Orbit::Lua {
 
@@ -228,6 +292,9 @@ void LuaRuntime::_register_utils() {
 
 	lua_pushcfunction(L, make_rect);
 	lua_setglobal(L, "rect");
+
+	lua_pushcfunction(L, make_color);
+	lua_setglobal(L, "color");
 }
 
 };

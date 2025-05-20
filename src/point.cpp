@@ -150,16 +150,6 @@ void LuaRuntime::_register_point() {
 		return 1;
 	};
 
-	const auto distance = [](lua_State *L) {
-		Point *a = static_cast<Point *>(luaL_checkudata(L, 1, "point"));
-		Point *b = static_cast<Point *>(luaL_checkudata(L, 2, "point"));
-		
-		auto d = a->distance(*b);
-
-		lua_pushnumber(L, d);
-		return 1;
-	};
-
 	const auto tostring = [](lua_State *L) {
 		Point *a = static_cast<Point *>(luaL_checkudata(L, 1, "point"));
 		auto str = a->tostring();
@@ -194,10 +184,6 @@ void LuaRuntime::_register_point() {
 
 	lua_pushcfunction(L, equals);
 	lua_setfield(L, -2, "__eq");
-
-	lua_pushcfunction(L, distance);
-	lua_setfield(L, -2, "distance");
-
 
 	lua_pop(L, 1);
 }

@@ -1,11 +1,6 @@
 #include <string>
 #include <immintrin.h>
-#include <iostream>
-#include <iomanip>
-#include <cmath>
-#include <cstring>
 #include <stdexcept>
-#include <sstream>
 
 #include <Orbit/lua.h>
 #include <Orbit/point.h>
@@ -19,14 +14,11 @@ extern "C" {
 
 namespace Orbit::Lua {
 
-std::ostream &operator<<(std::ostream &o, const Color &c) {
-	return o << "Color(" << c.r << ',' << c.g << ',' << c.b << ')';
-}
-
 void LuaRuntime::_register_lib() {
 	_register_vector();
 	_register_point();	
 	_register_rectangle();
+	_register_color();
 	_register_utils();
 }
 

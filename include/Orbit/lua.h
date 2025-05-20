@@ -13,14 +13,6 @@ extern "C" {
 
 namespace Orbit::Lua {
 
-struct Color {
-	short r, g, b;
-
-	inline Color() : r(0), g(0), b(0) {}
-	inline Color(short r, short g, short b) : r(r), g(g), b(b) {}
-};
-
-std::ostream &operator<<(std::ostream &, const Color &);
 
 class LuaRuntime {
 
