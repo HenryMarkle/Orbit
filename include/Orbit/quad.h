@@ -1,5 +1,7 @@
 #pragma once
 
+#include <math.h>
+
 #include <Orbit/point.h>
 
 namespace Orbit::Lua {
@@ -96,9 +98,32 @@ struct Quad {
 		);
 	}
 
-	inline Quad() : topleft(Point()), toright(Point()), bottomright(Point()), bottomleft(Point) {}
-	inline Quad(Point tl, Point tr, Point br, Point bl) : topleft(tl), topright(tr), bottomright(br), bottomleft(bl) {}
+	inline Point center() const { return (topleft + topright + bottomright + bottomleft) / 4; }
+	inline Quad rotate(float degrees, const Point &center) const {
+		return Quad(
+				topleft.rotate(degrees, center),
+				topright.rotate(degrees, center),
+				bottomright.rotate(degrees, center),
+				bottomleft.rotate(degrees, center)
+		);
+	}
+	inline Quad operator>>(float degrees) const { return rotate(degrees, center()); }
 
+	inline std::string tostring() const {
+		std::stringstream ss;
+
+		ss 
+			<< "quad(" 
+			<< topleft << ", " 
+			<< topright << ", "
+			<< bottomright << ", "
+			<< bottomleft << ")";
+	
+		return ss.str();
+	}
+
+	inline Quad() : topleft(Point()), topright(Point()), bottomright(Point()), bottomleft(Point()) {}
+	inline Quad(Point tl, Point tr, Point br, Point bl) : topleft(tl), topright(tr), bottomright(br), bottomleft(bl) {}
 };
 
 };

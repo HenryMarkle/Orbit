@@ -93,9 +93,7 @@ void LuaRuntime::_register_color() {
 	lua_pushcfunction(L, tostring);
 	lua_setfield(L, -2, "__tostring");
 
-	lua_newtable(L);
-
-	//lua_pushcfunction(L, read);
+	lua_pushcfunction(L, read);
 	lua_setfield(L, -2, "__index");
 
 	lua_pushcfunction(L, write);

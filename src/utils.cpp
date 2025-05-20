@@ -1,10 +1,11 @@
-#include <memory>
 #include <cstring>
 
 #include <Orbit/lua.h>
 #include <Orbit/vector.h>
 #include <Orbit/point.h>
 #include <Orbit/color.h>
+#include <Orbit/rect.h>
+#include <Orbit/quad.h>
 
 extern "C" {
     #include <lua.h>
@@ -15,6 +16,8 @@ extern "C" {
 using Orbit::Lua::Vector;
 using Orbit::Lua::Point;
 using Orbit::Lua::Color;
+using Orbit::Lua::Rectangle;
+using Orbit::Lua::Quad;
 
 int distance_vector(lua_State *L, const Vector *v1, const Vector *v2) {
 
@@ -274,6 +277,39 @@ void define_constant_colors(lua_State *L) {
 	// define constant colors here
 }
 
+
+int rotate_point(lua_State *L, const Point *p, float degrees, const Point *center);
+int rotate_quad(lua_State *L, const Quad *q, float degrees, const Point *center);
+int rotate_rect(lua_State *L, const Rectangle *r, float degrees, const Point *center);
+
+int rotate(lua_State *L) {
+	void *p1 = nullptr;
+
+	float degrees = luaL_checknumber(L, 2);
+	Point *center = static_cast<Point *>(luaL_testudata(L, 3, "point"));
+
+	if (
+			(p1 = luaL_testudata(L, 1, "point")) != nullptr
+		) {
+		return rotate_point(L, static_cast<Point *>(p1), degrees, center);
+	}
+	else if (
+			(p1 = luaL_testudata(L, 1, "quad")) != nullptr
+	) {
+		return rotate_quad(L, static_cast<Quad *>(p1), degrees, center);
+	}
+	else if (
+			(p1 = luaL_testudata(L, 1, "rect")) != nullptr
+	) {
+		return rotate_rect(L, static_cast<Rectangle *>(p1), degrees, center);
+	}
+	else {
+		return luaL_error(L, "invalid parameters");
+	}
+
+
+}
+
 namespace Orbit::Lua {
 
 void LuaRuntime::_register_utils() {
@@ -283,6 +319,9 @@ void LuaRuntime::_register_utils() {
 
 	lua_pushcfunction(L, mix);
 	lua_setglobal(L, "mix");
+
+	lua_pushcfunction(L, rotate);
+	lua_setglobal(L, "rotate");
 
  	lua_pushcfunction(L, make_vector);
 	lua_setglobal(L, "vector");

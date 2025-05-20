@@ -154,7 +154,7 @@ void LuaRuntime::_register_vector() {
 	};
 
 	const auto read = [](lua_State *L) {
-		Vector *p = static_cast<Vector *>(luaL_checkudata(L, 1, "vector"));
+		Vector *p = *static_cast<Vector **>(luaL_checkudata(L, 1, "vector"));
 		const char *field = luaL_checkstring(L, 2);
 
 		if (std::strcmp(field, "x") == 0) lua_pushnumber(L, p->data[0]);
@@ -313,34 +313,12 @@ void LuaRuntime::_register_vector() {
 		return 1;
 	};
 
-	//const auto concat = [](lua_State *L) {
-	//	bool lhs = luaL_testudata(L, 1, "vector") != nullptr;
-	//	bool rhs = luaL_testudata(L, 2, "vector") != nullptr;
-	//	
-	//	std::string str;
-//
-//		if (lhs && !rhs) {
-//			Vector *v = static_cast<Vector *>(luaL_checkudata(L, 1, "vector"));
-//			str = v->tostring();
-//		} else if (!lhs && rhs) {
-//			Vector *v = static_cast<Vector *>(luaL_checkudata(L, 2, "vector"));
-//			str = v->tostring();
-//		} else {
-//			return luaL_error(L, "concatenation requires one operand to be a vector");
-//		}
-//
-//		lua_pushstring(L, str.c_str());
-//		return 1;
-//	};
-
 	luaL_newmetatable(L, "vector");
 
 	lua_pushcfunction(L, tostring);
 	lua_setfield(L, -2, "__tostring");
 
-	lua_newtable(L);
-	
-	//lua_pushcfunction(L, read);
+	lua_pushcfunction(L, read);
 	lua_setfield(L, -2, "__index");
 
 	lua_pushcfunction(L, write);
@@ -367,8 +345,6 @@ void LuaRuntime::_register_vector() {
 		return 0;
 	});
 	lua_setfield(L, -2, "__gc");
-
-
 
 	lua_pop(L, 1);
 

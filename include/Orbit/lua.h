@@ -24,6 +24,7 @@ private:
 	void _register_vector();
 	void _register_color();
 	void _register_rectangle();
+	void _register_quad();
 
 	void _register_utils();
 

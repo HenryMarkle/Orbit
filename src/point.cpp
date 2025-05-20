@@ -2,6 +2,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cstring>
+#include <math.h>
 
 #include <Orbit/lua.h>
 #include <Orbit/point.h>
@@ -14,28 +15,43 @@ extern "C" {
 
 namespace Orbit::Lua {
 
-Point Point::operator+(Point const &p) {
+Point Point::operator+(Point const &p) const {
 	return Point(this->x + p.x, this->y + p.y);
 }
 
-Point Point::operator-(Point const &p) {
+Point Point::operator-(Point const &p) const {
 	return Point(this->x - p.x, this->y - p.y);
 }
 
-Point Point::operator*(int i) {
+Point Point::operator*(int i) const {
 	return Point(this->x + i, this->y + i);
 }
 
-Point Point::operator/(int i) {
+Point Point::operator/(int i) const {
 	return Point(this->x/i, this->y/i);
 }
 
-Point Point::operator*(float i) {
+Point Point::operator*(float i) const {
 	return Point(this->x + i, this->y + i);
 }
 
-Point Point::operator/(float i) {
+Point Point::operator/(float i) const {
 	return Point(this->x/i, this->y/i);
+}
+
+Point Point::rotate(float degrees, const Point &p) const {
+	float rad = degrees * 3.14f / 180.0f;
+
+	float sinr = (float)sin(rad);
+	float cosr = (float)cos(rad);
+
+	float dx = x - p.x;
+	float dy = y - p.y;
+
+	return Point(
+		p.x + dx * cosr - dy * sinr,
+		p.y + dx * sinr + dy * cosr
+	);
 }
 
 std::ostream &operator<<(std::ostream o, const Point &p) {
@@ -162,9 +178,7 @@ void LuaRuntime::_register_point() {
 	lua_pushcfunction(L, tostring);
 	lua_setfield(L, -2, "__tostring");
 
-	lua_newtable(L);
-
-	//lua_pushcfunction(L, read);
+	lua_pushcfunction(L, read);
 	lua_setfield(L, -2, "__index");
 
 	lua_pushcfunction(L, write);

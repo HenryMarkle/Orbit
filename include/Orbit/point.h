@@ -40,14 +40,17 @@ struct Point {
 		return Point(x * (1 - t) + p.x * t, y * (1 - t) + p.y);
 	}
 
-	Point operator+(Point const &);
-	Point operator-(Point const &);
+	Point rotate(float degrees, const Point &point) const;
+	inline Point operator>>(float degrees) const { return rotate(degrees, Point(0, 0)); }
+
+	Point operator+(Point const &) const;
+	Point operator-(Point const &) const;
 	
-	Point operator*(int);
-	Point operator/(int);
+	Point operator*(int) const;
+	Point operator/(int) const;
 	
-	Point operator*(float);
-	Point operator/(float);
+	Point operator*(float) const;
+	Point operator/(float) const;
 
 	inline bool operator==(const Point &p) const { return x == p.x && y == p.y; }
 	inline bool operator!=(const Point &p) const { return x != p.x || y != p.y; }
