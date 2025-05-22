@@ -54,9 +54,9 @@ Point Point::rotate(float degrees, const Point &p) const {
 	);
 }
 
-std::ostream &operator<<(std::ostream o, const Point &p) {
-	return o << "Point(" 
-		<< std::setprecision(4) << p.x << ','
+std::ostream &operator<<(std::ostream &o, const Point &p) {
+	return o << "point(" 
+		<< std::setprecision(4) << p.x << ", "
 		<< std::setprecision(4) << p.y
 		<< ')';
 }

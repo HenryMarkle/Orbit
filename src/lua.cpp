@@ -19,6 +19,7 @@ void LuaRuntime::_register_lib() {
 	_register_point();	
 	_register_rectangle();
 	_register_color();
+	_register_quad();
 	_register_utils();
 }
 

@@ -13,6 +13,14 @@ struct Rectangle {
 	inline float &right() { return data[2]; }
 	inline float &bottom() { return data[3]; }
 	
+	inline float left() const { return data[0]; }
+	inline float top() const { return data[1]; }
+	inline float right() const { return data[2]; }
+	inline float bottom() const { return data[3]; }
+
+	inline float width() const { return data[2] - data[0]; }
+	inline float height() const { return data[3] - data[1]; }
+
 	std::string tostring() const;
 	
 	inline bool operator==(Rectangle const &v) const {

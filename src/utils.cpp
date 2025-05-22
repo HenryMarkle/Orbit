@@ -278,9 +278,44 @@ void define_constant_colors(lua_State *L) {
 }
 
 
-int rotate_point(lua_State *L, const Point *p, float degrees, const Point *center);
-int rotate_quad(lua_State *L, const Quad *q, float degrees, const Point *center);
-int rotate_rect(lua_State *L, const Rectangle *r, float degrees, const Point *center);
+int rotate_point(lua_State *L, const Point *p, float degrees, const Point *center) {
+	Point c = (center == nullptr) ? Point(0, 0) : *center;
+
+	Point *res = static_cast<Point *>(lua_newuserdata(L, sizeof(Point)));
+	*res = p->rotate(degrees, c);
+
+	luaL_getmetatable(L, "point");
+	lua_setmetatable(L, -2);
+	
+	return 1;
+}
+
+int rotate_quad(lua_State *L, const Quad *q, float degrees, const Point *center) {
+	Quad *nq = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
+	*nq = q->rotate(degrees, (center == nullptr) ? q->center() : *center);
+
+	luaL_getmetatable(L, "quad");
+	lua_setmetatable(L, -2);
+
+	return 1;
+}
+
+int rotate_rect(lua_State *L, const Rectangle *r, float degrees, const Point *center) {
+	Quad q = Quad(
+				Point(r->left(), r->top()), 
+				Point(r->right(), r->top()), 
+				Point(r->right(), r->bottom()), 
+				Point(r->left(), r->bottom())
+			);
+
+	Quad *nq = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
+	*nq = q.rotate(degrees, (center == nullptr) ? q.center() : *center);
+
+	luaL_getmetatable(L, "quad");
+	lua_setmetatable(L, -2);
+
+	return 1;
+}
 
 int rotate(lua_State *L) {
 	void *p1 = nullptr;
@@ -306,8 +341,50 @@ int rotate(lua_State *L) {
 	else {
 		return luaL_error(L, "invalid parameters");
 	}
+}
 
+int make_quad(lua_State *L) {
+	int count = lua_gettop(L);
 
+	switch (count) {
+	
+		case 1: {
+			void *p = nullptr;
+	
+			if ((p = luaL_checkudata(L, 1, "quad")) != nullptr) {
+				Quad *q = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
+				*q = *static_cast<Quad *>(p);
+			
+				luaL_getmetatable(L, "quad");
+				lua_setmetatable(L, -2);
+			}
+			else if ((p = luaL_checkudata(L, 1, "rectangle")) != nullptr) {
+				Quad *q = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
+				Rectangle *r = static_cast<Rectangle *>(p);
+				*q = Quad(Point(r->left(), r->top()), Point(r->right(), r->top()), Point(r->right(), r->bottom()), Point(r->left(), r->bottom()));
+				
+				luaL_getmetatable(L, "quad");
+				lua_setmetatable(L, -2);
+			}
+		} break;
+
+		case 4: {
+			Point *tl = static_cast<Point *>(luaL_checkudata(L, 1, "point"));
+			Point *tr = static_cast<Point *>(luaL_checkudata(L, 2, "point"));
+			Point *br = static_cast<Point *>(luaL_checkudata(L, 3, "point"));
+			Point *bl = static_cast<Point *>(luaL_checkudata(L, 4, "point"));
+				
+			
+			Quad *q = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
+			*q = Quad(*tl, *tr, *br, *bl);	
+			
+			luaL_getmetatable(L, "quad");
+			lua_setmetatable(L, -2);
+		} break;
+	
+		default: return luaL_error(L, "invalid number of arguments to quad");
+	}
+	return 1;
 }
 
 namespace Orbit::Lua {
@@ -334,6 +411,9 @@ void LuaRuntime::_register_utils() {
 
 	lua_pushcfunction(L, make_color);
 	lua_setglobal(L, "color");
+
+	lua_pushcfunction(L, make_quad);
+	lua_setglobal(L, "quad");
 }
 
 };

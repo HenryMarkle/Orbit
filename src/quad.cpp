@@ -1,6 +1,7 @@
 #include <immintrin.h>
 #include <cstring>
 #include <math.h>
+#include <sstream>
 
 #include <Orbit/lua.h>
 #include <Orbit/quad.h>
@@ -13,6 +14,118 @@ extern "C" {
 }
 
 namespace Orbit::Lua {
+bool Quad::operator==(const Quad &q) const {
+	return 
+		topleft == q.topleft && 			
+		topright == q.topright && 
+		bottomright == q.bottomright && 
+		bottomleft == q.bottomleft;
+}
+
+bool Quad::operator!=(const Quad &q) const {
+		return 
+			topleft != q.topleft || 
+			topright != q.topright || 
+			bottomright != q.bottomright || 
+			bottomleft != q.bottomleft;
+}
+
+Quad Quad::operator+(const Quad &q) const {
+	return Quad(
+			topleft + q.topleft,
+			topright + q.topright,
+			bottomright + q.bottomright,
+			bottomleft + q.bottomleft
+		);
+}
+	
+Quad Quad::operator-(const Quad &q) const {
+		return Quad(
+			topleft - q.topleft,
+			topright - q.topright,
+			bottomright - q.bottomright,
+			bottomleft - q.bottomleft
+		);
+}
+
+Quad Quad::operator+(const Point &p) const {
+		return Quad(
+			topleft + p,
+			topright + p,
+			bottomright + p,
+			bottomleft + p
+		);
+}
+	
+Quad Quad::operator-(const Point &p) const {
+		return Quad(
+			topleft - p,
+			topright - p,
+			bottomright - p,
+			bottomleft - p
+		);
+}
+
+Quad Quad::operator*(const int i) const {
+		return Quad(
+			topleft * i,
+			topright * i,
+			bottomright * i,
+			bottomleft * i
+		);
+}
+
+Quad Quad::operator/(const int i) const {
+		return Quad(
+			topleft / i,
+			topright / i,
+			bottomright / i,
+			bottomleft / i
+		);
+}
+
+Quad Quad::operator*(const float i) const {
+		return Quad(
+			topleft * i,
+			topright * i,
+			bottomright * i,
+			bottomleft * i
+		);
+}
+
+Quad Quad::operator/(const float i) const {
+		return Quad(
+			topleft / i,
+			topright / i,
+			bottomright / i,
+			bottomleft / i
+		);
+}
+
+Point Quad::center() const { return (topleft + topright + bottomright + bottomleft) / 4; }
+Quad Quad::rotate(float degrees, const Point &center) const {
+		return Quad(
+				topleft.rotate(degrees, center),
+				topright.rotate(degrees, center),
+				bottomright.rotate(degrees, center),
+				bottomleft.rotate(degrees, center)
+		);
+}
+Quad Quad::operator>>(float degrees) const { return rotate(degrees, center()); }
+
+std::string Quad::tostring() const {
+		std::stringstream ss;
+
+		ss 
+			<< "quad(" 
+			<< topleft << ", " 
+			<< topright << ", "
+			<< bottomright << ", "
+			<< bottomleft << ")";
+	
+		return ss.str();
+}
+
 
 void LuaRuntime::_register_quad() {
 	const auto make = [](lua_State *L) {
