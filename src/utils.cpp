@@ -387,10 +387,110 @@ int make_quad(lua_State *L) {
 	return 1;
 }
 
+int enclose(lua_State *L) {
+	int count = lua_gettop(L);
+
+	if (count <= 0) return luaL_error(L, "insuffient arguments to function enclose");
+
+	Rectangle rect = Rectangle(0, 0, 0, 0);
+
+	for (int c = 1; c <= count; c++) {
+		void *arg1 = nullptr;
+
+		if ((arg1 = luaL_testudata(L, c, "rectangle")) != nullptr) {
+			Rectangle *r = *static_cast<Rectangle **>(arg1);
+
+			if (c == 0) {
+				std::memcpy(rect.data, r->data, sizeof(float) * 4);
+				continue;
+			}
+
+			if (r->left() < rect.left()) rect.left() = r->left();
+			if (r->left() > rect.right()) rect.right() = r->left();
+
+			if (r->top() < rect.top()) rect.top() = r->top();
+			if (r->top() > rect.bottom()) rect.bottom() = r->top();
+
+			if (r->right() > rect.right()) rect.right() = r->right();
+			if (r->right() < rect.left()) rect.left() = r->right();
+			
+			if (r->bottom() > rect.bottom()) rect.bottom() = r->bottom();
+			if (r->bottom() < rect.top()) rect.top() = r->bottom();
+		}
+		else if ((arg1 = luaL_testudata(L, c, "quad")) != nullptr) {
+			Quad *quad = static_cast<Quad *>(arg1);
+
+			float minx = std::min(std::min(quad->topleft.x, quad->topright.x), std::min(quad->bottomleft.x, quad->bottomright.x));
+			float miny = std::min(std::min(quad->topleft.y, quad->topright.y), std::min(quad->bottomleft.y, quad->bottomright.y));
+		
+			float maxx = std::max(std::max(quad->topleft.x, quad->topright.x), std::max(quad->bottomleft.x, quad->bottomright.x));
+			float maxy = std::max(std::max(quad->topleft.y, quad->topright.y), std::max(quad->bottomleft.y, quad->bottomright.y));
+		
+			if (minx < rect.left()) rect.left() = minx;
+			if (miny < rect.top()) rect.top() = miny;
+			if (maxx > rect.right()) rect.right() = maxx;
+			if (maxy > rect.bottom()) rect.bottom() = maxy;
+		}
+		else if ((arg1 = luaL_testudata(L, c, "point")) != nullptr) {
+			Point *p = static_cast<Point *>(arg1);
+
+			if (p->x < rect.left()) rect.left() = p->x;
+			if (p->x > rect.right()) rect.right() = p->x;
+			if (p->y < rect.top()) rect.top() = p->y;
+			if (p->y > rect.bottom()) rect.bottom() = p->y;
+		}
+		else {
+			return luaL_error(L, "invalid enclose argument %d", c);
+		}	
+	}
+
+	Rectangle **res = static_cast<Rectangle **>(lua_newuserdata(L, sizeof(Rectangle*)));
+	**res = rect;
+
+	luaL_getmetatable(L, "rectangle");
+	lua_setmetatable(L, -2);
+
+	return 1;
+}
+
+int center(lua_State *L) {
+	void *arg = nullptr;
+
+	Point *res = static_cast<Point *>(lua_newuserdata(L, sizeof(Point)));
+
+	if ((arg = luaL_testudata(L, 1, "point")) != nullptr) {
+		Point *p = static_cast<Point *>(arg);
+
+		*res = *p;
+	}
+	else if ((arg = luaL_testudata(L, 1, "rectangle"))) {
+		Rectangle *r = *static_cast<Rectangle **>(arg);
+
+		*res = Point((r->left() + r->right()) / 2.0f, (r->top() + r->bottom()) / 2.0f);
+	}
+	else if ((arg = luaL_testudata(L, 1, "vector"))) {
+		Vector *v = *static_cast<Vector **>(arg);
+
+		*res = Point((v->x() + v->y()) / 2.0f, (v->z() + v->w()) / 2.0f);
+	}
+	else if ((arg = luaL_testudata(L, 1, "quad"))) {
+		Quad *q = static_cast<Quad *>(arg);
+
+		*res = q->center();
+	}
+	else {
+		return luaL_error(L, "invalid argument for function center");
+	}
+
+	luaL_getmetatable(L, "point");
+	lua_setmetatable(L, -2);
+
+	return 1;
+}
+
 namespace Orbit::Lua {
 
 void LuaRuntime::_register_utils() {
-
 	lua_pushcfunction(L, distance);
 	lua_setglobal(L, "distance");
 
@@ -400,7 +500,13 @@ void LuaRuntime::_register_utils() {
 	lua_pushcfunction(L, rotate);
 	lua_setglobal(L, "rotate");
 
- 	lua_pushcfunction(L, make_vector);
+	lua_pushcfunction(L, enclose);
+	lua_setglobal(L, "enclose");
+
+	lua_pushcfunction(L, center);
+	lua_setglobal(L, "center");
+
+	lua_pushcfunction(L, make_vector);
 	lua_setglobal(L, "vector");
 
  	lua_pushcfunction(L, make_point);
