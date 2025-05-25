@@ -4,7 +4,6 @@
 #include <iomanip>
 #include <cmath>
 #include <cstring>
-#include <stdexcept>
 #include <sstream>
 
 #include <Orbit/lua.h>
@@ -114,18 +113,77 @@ Vector Vector::operator/(float f) const {
 }
 
 Vector &Vector::operator=(Vector const &v) {
-	std::memcpy(this->data, v.data, sizeof(float) * 4);
+	if (this == &v) return *this;
+
+	#ifdef __WIN32
+		data = static_cast<float *>(_aligned_malloc(16, sizeof(float) * 4));
+	#else
+		data = static_cast<float *>(aligned_alloc(16, sizeof(float) * 4));
+	#endif
+
+	std::memcpy(data, v.data, sizeof(float) * 4);
+	
+	return *this;
+}
+
+Vector &Vector::operator=(Vector &&v) noexcept {
+	if (this == &v) return *this;
+
+	#ifdef __WIN32
+		data = static_cast<float *>(_aligned_malloc(16, sizeof(float) * 4));
+	#else
+		data = static_cast<float *>(aligned_alloc(16, sizeof(float) * 4));
+	#endif
+
+	std::memcpy(data, v.data, sizeof(float) * 4);
+	std::free(v.data);
+	
 	return *this;
 }
 
 Vector::Vector(Vector const &v) {
+	#ifdef __WIN32
+		data = static_cast<float *>(_aligned_malloc(16, sizeof(float) * 4));
+	#else
+		data = static_cast<float *>(aligned_alloc(16, sizeof(float) * 4));
+	#endif
+
 	std::memcpy(data, v.data, sizeof(float) * 4);
 }
 
+Vector::Vector(Vector &&v) noexcept {
+	#ifdef __WIN32
+		data = static_cast<float *>(_aligned_malloc(16, sizeof(float) * 4));
+	#else
+		data = static_cast<float *>(aligned_alloc(16, sizeof(float) * 4));
+	#endif
+
+	std::memcpy(data, v.data, sizeof(float) * 4);
+	std::free(v.data);
+}
+
 Vector::Vector() {
+	#ifdef __WIN32
+		data = static_cast<floa *>(_aligned_malloc(16, sizeof(float) * 4));
+	#else
+		data = static_cast<float *>(aligned_alloc(16, sizeof(float) * 4));
+	#endif
+
 	std::memset(data, 0, sizeof(float) * 4);
 }
 
+Vector::Vector(float x, float y, float z, float w) {
+	#ifdef __WIN32
+		data = static_cast<floa *>(_aligned_malloc(16, sizeof(float) * 4));
+	#else
+		data = static_cast<float *>(aligned_alloc(16, sizeof(float) * 4));
+	#endif
+
+	*data = x;
+	*(data + 1) = y;
+	*(data + 2) = z;
+	*(data + 3) = w;
+}
 void LuaRuntime::_register_vector() {
 	const auto make = [](lua_State *L) {
 		float x = luaL_checknumber(L, 1);
@@ -133,16 +191,7 @@ void LuaRuntime::_register_vector() {
 		float z = luaL_checknumber(L, 3);
 		float w = luaL_checknumber(L, 4);
 
-#ifdef __WIN32
-		Vector *p = static_cast<Vector *>(_aligned_malloc(16, sizeof(Vector)));
-#else
-		Vector *p = static_cast<Vector *>(aligned_alloc(16, sizeof(Vector)));
-#endif
-
-		p->data[0] = x;
-		p->data[1] = y;
-		p->data[2] = z;
-		p->data[3] = w;
+		Vector *p = new Vector(x, y, z, w);
 
 		Vector **udata = static_cast<Vector **>(lua_newuserdata(L, sizeof(Vector*)));
 		*udata = p;
@@ -185,11 +234,7 @@ void LuaRuntime::_register_vector() {
 		Vector a = **static_cast<Vector **>(luaL_checkudata(L, 1, "vector"));
 		Vector b = **static_cast<Vector **>(luaL_checkudata(L, 2, "vector"));
 		
-#ifdef __WIN32
-		Vector *res = static_cast<Vector *>(_aligned_malloc(16, sizeof(Vector)));
-#else
-		Vector *res = static_cast<Vector *>(aligned_alloc(16, sizeof(Vector)));
-#endif
+		Vector *res = new Vector();
 		*res = a + b;
 
 		Vector **udata = static_cast<Vector **>(lua_newuserdata(L, sizeof(Vector*)));
@@ -204,12 +249,8 @@ void LuaRuntime::_register_vector() {
 	const auto subtract = [](lua_State *L) {
 		Vector a = **static_cast<Vector **>(luaL_checkudata(L, 1, "vector"));
 		Vector b = **static_cast<Vector **>(luaL_checkudata(L, 2, "vector"));
-		
-#ifdef __WIN32
-		Vector *res = static_cast<Vector *>(_aligned_malloc(16, sizeof(Vector)));
-#else
-		Vector *res = static_cast<Vector *>(aligned_alloc(16, sizeof(Vector)));
-#endif
+			
+		Vector *res = new Vector();
 		*res = a - b;
 
 		Vector **udata = static_cast<Vector **>(lua_newuserdata(L, sizeof(Vector*)));
@@ -236,11 +277,7 @@ void LuaRuntime::_register_vector() {
 			return luaL_error(L, "invalid operands to vector multiplication");
 		}
 
-#ifdef __WIN32
-		Vector *res = static_cast<Vector *>(_aligned_malloc(16, sizeof(Vector)));
-#else
-		Vector *res = static_cast<Vector *>(aligned_alloc(16, sizeof(Vector)));
-#endif
+		Vector *res = new Vector();
 
 		auto r = *v * n;
 			
@@ -272,11 +309,7 @@ void LuaRuntime::_register_vector() {
 			return luaL_error(L, "invalid operands to vector multiplication");
 		}
 
-#ifdef __WIN32
-		Vector *res = static_cast<Vector *>(_aligned_malloc(16, sizeof(Vector)));
-#else
-		Vector *res = static_cast<Vector *>(aligned_alloc(16, sizeof(Vector)));
-#endif
+		Vector *res = new Vector();
 
 		auto r = *v / n;
 			

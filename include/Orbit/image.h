@@ -1,5 +1,6 @@
 #pragma once
 
+#include <immintrin.h>
 #include <cstdint>
 
 #include <Orbit/color.h>
@@ -10,6 +11,8 @@
 namespace Orbit::Lua {
 
 enum class ImageCopyOptions : uint8_t {
+	None,
+	Blend,
 	RemoveBackground,
 	Ink,
 	Darkest,
@@ -17,15 +20,15 @@ enum class ImageCopyOptions : uint8_t {
 
 class Image {
 private:
-	uint8_t *_data;
+	alignas(16) uint8_t *_data;
 	int _width, _height;
 
 	const static int _depth = 8;
-	const static Color _default_color = Color(255, 255, 255, 255);
-
+	inline static const Color _default_color = Color(255, 255, 255, 255);
+	static constexpr uint32_t _packed_default_color = (255 << 24) | (255 << 16) | (255 << 8) | 255;
 public:
 
-	inline int size() const { return _width * _height * _depth; }
+	inline int size() const { return _width * _height * 4; }
 	inline int width() const { return _width; }
 	inline int height() const { return _height; }
 
@@ -45,8 +48,8 @@ public:
 	void copy_to(Image &, const Rectangle &, const Rectangle &, Color, ImageCopyOptions);
 	void copy_to(Image &, const Rectangle &, const Quad &, Color, ImageCopyOptions);
 
-	Image &operator(Image &&) noexcept;
-	Image &operator(const Image &);
+	Image &operator=(Image &&) noexcept;
+	Image &operator=(const Image &);
 
 	Image(Image &&) noexcept;
 	Image(const Image &);

@@ -1,12 +1,14 @@
 #pragma once
 
+#include <memory>
 #include <string>
+#include <cstring>
 #include <iostream>
 
 namespace Orbit::Lua {
 
 struct Vector {
-	alignas(16) float data[4];
+	alignas(16) float *data;
 
 	inline float &x() { return data[0]; }
 	inline float &y() { return data[1]; }
@@ -40,15 +42,12 @@ struct Vector {
 	Vector operator/(float) const;
 
 	Vector &operator=(Vector const &);
-
+	Vector &operator=(Vector &&) noexcept;
+	
 	Vector(Vector const &);
+	Vector(Vector &&) noexcept;
 	Vector();
-	inline Vector(float x = 0.0f, float y = 0.0f, float z = 0.0f, float w = 0.0f) {
-		data[0] = x;
-		data[1] = y;
-		data[2] = z;
-		data[3] = w;
-	}
+	Vector(float x, float y, float z, float w);
 };
 
 std::ostream &operator<<(std::ostream &, const Vector &);
