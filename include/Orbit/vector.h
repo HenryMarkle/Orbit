@@ -8,7 +8,11 @@
 namespace Orbit::Lua {
 
 struct Vector {
+	#ifdef AVX2
 	alignas(16) float *data;
+	#else
+	float *data;
+	#endif
 
 	inline float &x() { return data[0]; }
 	inline float &y() { return data[1]; }

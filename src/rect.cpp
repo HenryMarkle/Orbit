@@ -1,5 +1,8 @@
-#include <string>
+#ifdef AVX2
 #include <immintrin.h>
+#endif
+
+#include <string>
 #include <iostream>
 #include <iomanip>
 #include <cmath>
@@ -24,7 +27,7 @@ std::string Rectangle::tostring() const {
 	std::stringstream ss;
 
 		ss 
-			<< "rect(" 
+			<< META << '(' 
 			<< std::setprecision(4) << data[0] << ", "
 			<< std::setprecision(4) << data[1] << ", "
 			<< std::setprecision(4) << data[2] << ", "
@@ -34,6 +37,7 @@ std::string Rectangle::tostring() const {
 }
 
 Rectangle Rectangle::operator+(Rectangle const &v) const {
+#ifdef AVX2
 	auto a = _mm_load_ps(this->data);
 	auto b = _mm_load_ps(v.data);
 
@@ -43,9 +47,18 @@ Rectangle Rectangle::operator+(Rectangle const &v) const {
 	_mm_store_ps(res_vec.data, res);
 	
 	return res_vec;
+#else
+	return Rectangle(
+			data[0] + v.data[0],
+			data[1] + v.data[1],
+			data[2] + v.data[2],
+			data[3] + v.data[3],
+		);
+#endif
 }
 
 Rectangle Rectangle::operator-(Rectangle const &v) const {
+#ifdef AVX2
 	auto a = _mm_load_ps(this->data);
 	auto b = _mm_load_ps(v.data);
 
@@ -55,10 +68,18 @@ Rectangle Rectangle::operator-(Rectangle const &v) const {
 	_mm_store_ps(res_vec.data, res);
 	
 	return res_vec;
-
+#else
+	return Rectangle(
+			data[0] - v.data[0],
+			data[1] - v.data[1],
+			data[2] - v.data[2],
+			data[3] - v.data[3],
+		);
+#endif
 }
 
 Rectangle Rectangle::operator*(float f) const {
+#ifdef AVX2
 	auto v = _mm_load_ps(this->data);
 	auto fv = _mm_set1_ps(f);
 	
@@ -68,9 +89,18 @@ Rectangle Rectangle::operator*(float f) const {
 	_mm_store_ps(res_vec.data, res);
 
 	return res_vec;
+#else
+	return Rectangle(
+			data[0] * f,
+			data[1] * f,
+			data[2] * f,
+			data[3] * f,
+		);
+#endif
 }
 
 Rectangle Rectangle::operator/(float f) const {
+#ifdef AVX2
 	auto v = _mm_loadu_ps(this->data);
 	auto fv = _mm_set1_ps(f);
 	
@@ -80,6 +110,14 @@ Rectangle Rectangle::operator/(float f) const {
 	_mm_storeu_ps(res_vec.data, res);
 
 	return res_vec;
+#else
+	return Rectangle(
+			data[0] / f,
+			data[1] / f,
+			data[2] / f,
+			data[3] / f,
+		);
+#endif
 }
 
 Rectangle &Rectangle::operator=(Rectangle const &v) {

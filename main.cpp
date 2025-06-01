@@ -8,6 +8,8 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 
+#include <raylib.h>
+
 using std::shared_ptr;
 using std::make_shared;
 
@@ -40,6 +42,8 @@ int main(int, char**) {
 
 	logger->info(std::string("Orbit v") + APP_VERSION);
 
+
+	
 	logger->info("initializing runtime");
 
 	auto rt = Orbit::Lua::LuaRuntime();
@@ -47,6 +51,22 @@ int main(int, char**) {
 	logger->info("loading scripts");
 
 	rt.load_directory(paths->scripts());
+
+
+
+	logger->info("initializing window");
+
+	InitWindow(1400, 800, "Orbit Runtime");
+
+
+	while (!WindowShouldClose()) {
+		BeginDrawing();
+		ClearBackground(GRAY);
+		EndDrawing();
+	}
+
+
+	CloseWindow();
 	
 	logger->info("------------------------------------ program terminated");
 

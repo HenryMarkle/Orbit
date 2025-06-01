@@ -1,5 +1,8 @@
-#include <string>
+#ifdef AVX2
 #include <immintrin.h>
+#endif
+
+#include <string>
 #include <iostream>
 #include <iomanip>
 #include <cmath>
@@ -18,6 +21,7 @@ extern "C" {
 namespace Orbit::Lua {
 
 float Vector::distance(Vector const &v) const {
+#ifdef AVX2
 	__m128 a = _mm_load_ps(this->data);
 	__m128 b = _mm_load_ps(v.data);
 
@@ -31,6 +35,14 @@ float Vector::distance(Vector const &v) const {
 	sums = _mm_add_ss(sums, shuf);
 
 	return std::sqrt(_mm_cvtss_f32(sums));
+#else
+	return static_cast<float>(std::sqrt(
+			(data[0] + v.data[0]) * (data[0] + v.data[0]) +
+			(data[1] + v.data[1]) * (data[1] + v.data[1]) +
+			(data[2] + v.data[2]) * (data[2] + v.data[2]) +
+			(data[3] + v.data[3]) * (data[3] + v.data[3])
+		));
+#endif
 }
 
 Vector Vector::mix(Vector const &v, float t) const {
@@ -64,6 +76,7 @@ std::string Vector::tostring() const {
 }
 
 Vector Vector::operator+(Vector const &v) const {
+#ifdef AVX2
 	auto a = _mm_load_ps(this->data);
 	auto b = _mm_load_ps(v.data);
 
@@ -73,9 +86,18 @@ Vector Vector::operator+(Vector const &v) const {
 	_mm_store_ps(res_vec.data, res);
 	
 	return res_vec;
+#else
+	return Vector(
+			data[0] + v.data[0],
+			data[1] + v.data[1],
+			data[2] + v.data[2],
+			data[3] + v.data[3]
+		);
+#endif
 }
 
 Vector Vector::operator-(Vector const &v) const {
+#ifdef AVX2
 	auto a = _mm_load_ps(this->data);
 	auto b = _mm_load_ps(v.data);
 
@@ -85,10 +107,18 @@ Vector Vector::operator-(Vector const &v) const {
 	_mm_store_ps(res_vec.data, res);
 	
 	return res_vec;
-
+#else
+return Vector(
+			data[0] - v.data[0],
+			data[1] - v.data[1],
+			data[2] - v.data[2],
+			data[3] - v.data[3]
+		);
+#endif
 }
 
 Vector Vector::operator*(float f) const {
+#ifdef AVX2
 	auto v = _mm_load_ps(this->data);
 	auto fv = _mm_set1_ps(f);
 	
@@ -98,9 +128,18 @@ Vector Vector::operator*(float f) const {
 	_mm_store_ps(res_vec.data, res);
 
 	return res_vec;
+#else
+	return Vector(
+			data[0] * f,
+			data[1] * f,
+			data[2] * f,
+			data[3] * f
+		);
+#endif
 }
 
 Vector Vector::operator/(float f) const {
+#ifdef AVX2
 	auto v = _mm_loadu_ps(this->data);
 	auto fv = _mm_set1_ps(f);
 	
@@ -110,6 +149,14 @@ Vector Vector::operator/(float f) const {
 	_mm_storeu_ps(res_vec.data, res);
 
 	return res_vec;
+#else
+	return Vector(
+			data[0] / f,
+			data[1] / f,
+			data[2] / f,
+			data[3] / f
+		);
+#endif
 }
 
 Vector &Vector::operator=(Vector const &v) {

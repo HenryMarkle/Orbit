@@ -6,7 +6,11 @@
 namespace Orbit::Lua {
 
 struct Rectangle {
+	#ifdef AVX2
 	alignas(16) float data[4];
+	#else
+	float data[4];
+	#endif
 
 	inline float &left() { return data[0]; }
 	inline float &top() { return data[1]; }
