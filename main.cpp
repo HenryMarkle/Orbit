@@ -13,6 +13,9 @@
 using std::shared_ptr;
 using std::make_shared;
 
+using std::unique_ptr;
+using std::make_unique;
+
 int main(int, char**) {
     shared_ptr<Orbit::Paths> paths = make_shared<Orbit::Paths>();
 	
