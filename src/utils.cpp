@@ -1,4 +1,5 @@
 #include <cstring>
+#include <filesystem>
 
 #include <Orbit/lua.h>
 #include <Orbit/vector.h>
@@ -6,6 +7,8 @@
 #include <Orbit/color.h>
 #include <Orbit/rect.h>
 #include <Orbit/quad.h>
+
+#include <raylib.h>
 
 extern "C" {
     #include <lua.h>
@@ -15,9 +18,10 @@ extern "C" {
 
 using Orbit::Lua::Vector;
 using Orbit::Lua::Point;
-using Orbit::Lua::Color;
-using Orbit::Lua::Rectangle;
+using Orbit::Lua::Rect;
 using Orbit::Lua::Quad;
+
+std::string base_path;
 
 int distance_vector(lua_State *L, const Vector *v1, const Vector *v2) {
 
@@ -217,17 +221,17 @@ int make_rect(lua_State *L) {
 int make_color(lua_State *L) {
 	int argcount = lua_gettop(L);
     
-	Color *p = static_cast<Color *>(lua_newuserdata(L, sizeof(Color)));
+	Orbit::Lua::Color *p = static_cast<Orbit::Lua::Color *>(lua_newuserdata(L, sizeof(Orbit::Lua::Color)));
 	
 	if (argcount == 0) {
-		*p = Color();
+		*p = Orbit::Lua::Color();
 	}
 	else if (argcount == 1) {
-		Color *arg = nullptr;
+		Orbit::Lua::Color *arg = nullptr;
 
 	
-		if ((arg = static_cast<Color *>(luaL_testudata(L, 1, "color")))) {
-			*p = Color(*arg);
+		if ((arg = static_cast<Orbit::Lua::Color *>(luaL_testudata(L, 1, "color")))) {
+			*p = Orbit::Lua::Color(*arg);
 		}
 		else {
 			p->r = lua_tonumber(L, 1);
@@ -237,7 +241,7 @@ int make_color(lua_State *L) {
 		}
 	}
 	else {
-		*p = Color();
+		*p = Orbit::Lua::Color();
 		
 		if (lua_isnumber(L, 1)) p->r = lua_tonumber(L, 1);
 		if (lua_isnumber(L, 2)) p->g = lua_tonumber(L, 2);
@@ -300,7 +304,7 @@ int rotate_quad(lua_State *L, const Quad *q, float degrees, const Point *center)
 	return 1;
 }
 
-int rotate_rect(lua_State *L, const Rectangle *r, float degrees, const Point *center) {
+int rotate_rect(lua_State *L, const Rect *r, float degrees, const Point *center) {
 	Quad q = Quad(
 				Point(r->left(), r->top()), 
 				Point(r->right(), r->top()), 
@@ -336,7 +340,7 @@ int rotate(lua_State *L) {
 	else if (
 			(p1 = luaL_testudata(L, 1, "rect")) != nullptr
 	) {
-		return rotate_rect(L, static_cast<Rectangle *>(p1), degrees, center);
+		return rotate_rect(L, static_cast<Rect *>(p1), degrees, center);
 	}
 	else {
 		return luaL_error(L, "invalid parameters");
@@ -360,7 +364,7 @@ int make_quad(lua_State *L) {
 			}
 			else if ((p = luaL_checkudata(L, 1, "rectangle")) != nullptr) {
 				Quad *q = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
-				Rectangle *r = static_cast<Rectangle *>(p);
+				Rect *r = static_cast<Rect *>(p);
 				*q = Quad(Point(r->left(), r->top()), Point(r->right(), r->top()), Point(r->right(), r->bottom()), Point(r->left(), r->bottom()));
 				
 				luaL_getmetatable(L, "quad");
@@ -392,13 +396,13 @@ int enclose(lua_State *L) {
 
 	if (count <= 0) return luaL_error(L, "insuffient arguments to function enclose");
 
-	Rectangle rect = Rectangle(0, 0, 0, 0);
+	Rect rect = Rect(0, 0, 0, 0);
 
 	for (int c = 1; c <= count; c++) {
 		void *arg1 = nullptr;
 
 		if ((arg1 = luaL_testudata(L, c, "rectangle")) != nullptr) {
-			Rectangle *r = *static_cast<Rectangle **>(arg1);
+			Rect *r = *static_cast<Rect **>(arg1);
 
 			if (c == 0) {
 				std::memcpy(rect.data, r->data, sizeof(float) * 4);
@@ -444,7 +448,7 @@ int enclose(lua_State *L) {
 		}	
 	}
 
-	Rectangle **res = static_cast<Rectangle **>(lua_newuserdata(L, sizeof(Rectangle*)));
+	Rect **res = static_cast<Rect **>(lua_newuserdata(L, sizeof(Rect *)));
 	**res = rect;
 
 	luaL_getmetatable(L, "rectangle");
@@ -464,7 +468,7 @@ int center(lua_State *L) {
 		*res = *p;
 	}
 	else if ((arg = luaL_testudata(L, 1, "rectangle"))) {
-		Rectangle *r = *static_cast<Rectangle **>(arg);
+		Rect *r = *static_cast<Rect **>(arg);
 
 		*res = Point((r->left() + r->right()) / 2.0f, (r->top() + r->bottom()) / 2.0f);
 	}
@@ -488,9 +492,65 @@ int center(lua_State *L) {
 	return 1;
 }
 
+int make_image(lua_State *L) {
+		int count = lua_gettop(L);
+
+		switch (count) {
+			case 1: {
+				if (lua_isstring(L, 1)) {
+					const char *path = luaL_checkstring(L, 1);
+			
+					std::filesystem::path full = std::filesystem::weakly_canonical(base_path + path);
+
+					if (full.string().rfind(base_path, 0) != 0) {
+						return luaL_error(L, "access denied");
+					}
+
+					Image *img = static_cast<Image *>(lua_newuserdata(L, sizeof(Image)));
+					*img = LoadImage(full.string().c_str());
+				} else {
+					Image *img = static_cast<Image *>(luaL_checkudata(L, 1, "image"));
+
+					Image *copy = static_cast<Image *>(lua_newuserdata(L, sizeof(Image)));
+
+					*copy = ImageCopy(*img);
+				}			
+			}
+			break;
+				
+			case 2: {
+				int width = luaL_checkinteger(L, 1);
+				int height = luaL_checkinteger(L, 2);
+		
+				Image nimg = GenImageColor(width, height, { 255, 255, 255, 255 });
+				Image *img = static_cast<Image *>(lua_newuserdata(L, sizeof(Image)));
+				*img = nimg;
+			}
+			break;
+
+			case 3: {
+				int width = luaL_checkinteger(L, 1);
+				int height = luaL_checkinteger(L, 2);
+				Orbit::Lua::Color *color = static_cast<Orbit::Lua::Color *>(luaL_checkudata(L, 3, "color"));
+
+				Image nimg = GenImageColor(width, height, { color->r, color->g, color->b, color->a });
+				Image *img = static_cast<Image *>(lua_newuserdata(L, sizeof(Image)));
+				*img = nimg;
+			}
+			break;
+		}
+
+		luaL_getmetatable(L, "image");
+		lua_setmetatable(L, -2);
+
+		return 1;
+	};
+
 namespace Orbit::Lua {
 
 void LuaRuntime::_register_utils() {
+	base_path = _paths->data().string();
+
 	lua_pushcfunction(L, distance);
 	lua_setglobal(L, "distance");
 
@@ -520,6 +580,9 @@ void LuaRuntime::_register_utils() {
 
 	lua_pushcfunction(L, make_quad);
 	lua_setglobal(L, "quad");
+
+	lua_pushcfunction(L, make_image);
+	lua_setglobal(L, "image");
 }
 
 };

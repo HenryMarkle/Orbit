@@ -1,8 +1,8 @@
 #include <string>
-#include <immintrin.h>
 #include <stdexcept>
 
 #include <Orbit/lua.h>
+#include <Orbit/paths.h>
 #include <Orbit/point.h>
 #include <Orbit/vector.h>
 
@@ -52,8 +52,10 @@ void LuaRuntime::load_directory(std::filesystem::path const &dir) {
 	}
 }
 
-LuaRuntime::LuaRuntime() {
-    L =  luaL_newstate();
+LuaRuntime::LuaRuntime(std::shared_ptr<Orbit::Paths> paths) {
+    _paths = paths;
+
+	L =  luaL_newstate();
 	
 	luaopen_base(L);
 	luaopen_math(L);

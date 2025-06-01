@@ -5,7 +5,7 @@
 
 namespace Orbit::Lua {
 
-struct Rectangle {
+struct Rect {
 	#ifdef AVX2
 	alignas(16) float data[4];
 	#else
@@ -27,14 +27,14 @@ struct Rectangle {
 
 	std::string tostring() const;
 	
-	inline bool operator==(Rectangle const &v) const {
+	inline bool operator==(Rect const &v) const {
 		return 
 			this->data[0] == v.data[0] &&
 			this->data[1] == v.data[1] &&
 			this->data[2] == v.data[2] &&
 			this->data[3] == v.data[3];
 	}
-	inline bool operator!=(Rectangle const &v) const {
+	inline bool operator!=(Rect const &v) const {
 		return 
 			this->data[0] != v.data[0] ||
 			this->data[1] != v.data[1] ||
@@ -42,17 +42,17 @@ struct Rectangle {
 			this->data[3] != v.data[3];
 	}
 
-	Rectangle operator+(Rectangle const &) const;
-	Rectangle operator-(Rectangle const &) const;
+	Rect operator+(Rect const &) const;
+	Rect operator-(Rect const &) const;
 
-	Rectangle operator*(float) const;
-	Rectangle operator/(float) const;
+	Rect operator*(float) const;
+	Rect operator/(float) const;
 
-	Rectangle &operator=(Rectangle const &);
+	Rect &operator=(Rect const &);
 
-	Rectangle(Rectangle const &);
-	Rectangle();
-	inline Rectangle(float x = 0.0f, float y = 0.0f, float z = 0.0f, float w = 0.0f) {
+	Rect(Rect const &);
+	Rect();
+	inline Rect(float x = 0.0f, float y = 0.0f, float z = 0.0f, float w = 0.0f) {
 		data[0] = x;
 		data[1] = y;
 		data[2] = z;
@@ -60,6 +60,6 @@ struct Rectangle {
 	}
 };
 
-std::ostream &operator<<(std::ostream &, const Rectangle &);
+std::ostream &operator<<(std::ostream &, const Rect &);
 
 };

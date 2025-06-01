@@ -49,7 +49,7 @@ int main(int, char**) {
 	
 	logger->info("initializing runtime");
 
-	auto rt = Orbit::Lua::LuaRuntime();
+	auto rt = Orbit::Lua::LuaRuntime(paths);
 
 	logger->info("loading scripts");
 

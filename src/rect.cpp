@@ -19,11 +19,11 @@ extern "C" {
     #include <lualib.h>
 }
 
-const char *META = "rect";
+#define META "rect"
 
 namespace Orbit::Lua {
 
-std::string Rectangle::tostring() const {
+std::string Rect::tostring() const {
 	std::stringstream ss;
 
 		ss 
@@ -36,19 +36,19 @@ std::string Rectangle::tostring() const {
 		return ss.str();
 }
 
-Rectangle Rectangle::operator+(Rectangle const &v) const {
+Rect Rect::operator+(Rect const &v) const {
 #ifdef AVX2
 	auto a = _mm_load_ps(this->data);
 	auto b = _mm_load_ps(v.data);
 
 	auto res = _mm_add_ps(a, b);
 
-	Rectangle res_vec(0, 0, 0, 0);
+	Rect res_vec(0, 0, 0, 0);
 	_mm_store_ps(res_vec.data, res);
 	
 	return res_vec;
 #else
-	return Rectangle(
+	return Rect(
 			data[0] + v.data[0],
 			data[1] + v.data[1],
 			data[2] + v.data[2],
@@ -57,19 +57,19 @@ Rectangle Rectangle::operator+(Rectangle const &v) const {
 #endif
 }
 
-Rectangle Rectangle::operator-(Rectangle const &v) const {
+Rect Rect::operator-(Rect const &v) const {
 #ifdef AVX2
 	auto a = _mm_load_ps(this->data);
 	auto b = _mm_load_ps(v.data);
 
 	auto res = _mm_sub_ps(a, b);
 
-	Rectangle res_vec(0, 0, 0, 0);
+	Rect res_vec(0, 0, 0, 0);
 	_mm_store_ps(res_vec.data, res);
 	
 	return res_vec;
 #else
-	return Rectangle(
+	return Rect(
 			data[0] - v.data[0],
 			data[1] - v.data[1],
 			data[2] - v.data[2],
@@ -78,19 +78,19 @@ Rectangle Rectangle::operator-(Rectangle const &v) const {
 #endif
 }
 
-Rectangle Rectangle::operator*(float f) const {
+Rect Rect::operator*(float f) const {
 #ifdef AVX2
 	auto v = _mm_load_ps(this->data);
 	auto fv = _mm_set1_ps(f);
 	
 	auto res = _mm_mul_ps(v, fv);
 
-	Rectangle res_vec(0, 0, 0, 0);
+	Rect res_vec(0, 0, 0, 0);
 	_mm_store_ps(res_vec.data, res);
 
 	return res_vec;
 #else
-	return Rectangle(
+	return Rect(
 			data[0] * f,
 			data[1] * f,
 			data[2] * f,
@@ -99,19 +99,19 @@ Rectangle Rectangle::operator*(float f) const {
 #endif
 }
 
-Rectangle Rectangle::operator/(float f) const {
+Rect Rect::operator/(float f) const {
 #ifdef AVX2
 	auto v = _mm_loadu_ps(this->data);
 	auto fv = _mm_set1_ps(f);
 	
 	auto res = _mm_div_ps(v, fv);
 
-	Rectangle res_vec(0, 0, 0, 0);
+	Rect res_vec(0, 0, 0, 0);
 	_mm_storeu_ps(res_vec.data, res);
 
 	return res_vec;
 #else
-	return Rectangle(
+	return Rect(
 			data[0] / f,
 			data[1] / f,
 			data[2] / f,
@@ -120,16 +120,16 @@ Rectangle Rectangle::operator/(float f) const {
 #endif
 }
 
-Rectangle &Rectangle::operator=(Rectangle const &v) {
+Rect &Rect::operator=(Rect const &v) {
 	std::memcpy(this->data, v.data, sizeof(float) * 4);
 	return *this;
 }
 
-Rectangle::Rectangle(Rectangle const &v) {
+Rect::Rect(Rect const &v) {
 	std::memcpy(data, v.data, sizeof(float) * 4);
 }
 
-Rectangle::Rectangle() {
+Rect::Rect() {
 	std::memset(data, 0, sizeof(float) * 4);
 }
 
@@ -141,9 +141,9 @@ void LuaRuntime::_register_rectangle() {
 		float w = luaL_checknumber(L, 4);
 
 #ifdef __WIN32
-		Rectangle *p = static_cast<Rectangle *>(_aligned_malloc(16, sizeof(Vector)));
+		Rect *p = static_cast<Rect *>(_aligned_malloc(16, sizeof(Rect)));
 #else
-		Rectangle *p = static_cast<Rectangle *>(aligned_alloc(16, sizeof(Rectangle)));
+		Rect *p = static_cast<Rect *>(aligned_alloc(16, sizeof(Rect)));
 #endif
 
 		p->data[0] = x;
@@ -151,7 +151,7 @@ void LuaRuntime::_register_rectangle() {
 		p->data[2] = z;
 		p->data[3] = w;
 
-		Rectangle **udata = static_cast<Rectangle **>(lua_newuserdata(L, sizeof(Rectangle*)));
+		Rect **udata = static_cast<Rect **>(lua_newuserdata(L, sizeof(Rect *)));
 		*udata = p;
 
 		luaL_getmetatable(L, META);
@@ -161,7 +161,7 @@ void LuaRuntime::_register_rectangle() {
 	};
 
 	const auto read = [](lua_State *L) {
-		Rectangle *p = *static_cast<Rectangle **>(luaL_checkudata(L, 1, META));
+		Rect *p = *static_cast<Rect **>(luaL_checkudata(L, 1, META));
 		const char *field = luaL_checkstring(L, 2);
 
 		if (std::strcmp(field, "left") == 0) lua_pushnumber(L, p->data[0]);
@@ -174,7 +174,7 @@ void LuaRuntime::_register_rectangle() {
 	};
 
 	const auto write = [](lua_State *L) {
-		Rectangle *p = *static_cast<Rectangle **>(luaL_checkudata(L, 1, META));
+		Rect *p = *static_cast<Rect **>(luaL_checkudata(L, 1, META));
 
 		const char *field = luaL_checkstring(L, 2);
 		float value = luaL_checknumber(L, 3);
@@ -189,17 +189,17 @@ void LuaRuntime::_register_rectangle() {
 	};
 
 	const auto add = [](lua_State *L) {
-		Rectangle a = **static_cast<Rectangle **>(luaL_checkudata(L, 1, META));
-		Rectangle b = **static_cast<Rectangle **>(luaL_checkudata(L, 2, META));
+		Rect a = **static_cast<Rect **>(luaL_checkudata(L, 1, META));
+		Rect b = **static_cast<Rect **>(luaL_checkudata(L, 2, META));
 		
 #ifdef __WIN32
-		Rectangle *res = static_cast<Rectangle *>(_aligned_malloc(16, sizeof(Rectangle)));
+		Rect *res = static_cast<Rect *>(_aligned_malloc(16, sizeof(Rect)));
 #else
-		Rectangle *res = static_cast<Rectangle *>(aligned_alloc(16, sizeof(Rectangle)));
+		Rect *res = static_cast<Rect *>(aligned_alloc(16, sizeof(Rect)));
 #endif
 		*res = a + b;
 
-		Rectangle **udata = static_cast<Rectangle **>(lua_newuserdata(L, sizeof(Rectangle*)));
+		Rect **udata = static_cast<Rect **>(lua_newuserdata(L, sizeof(Rect *)));
 		*udata = res;
 
 		luaL_getmetatable(L, META);
@@ -209,17 +209,17 @@ void LuaRuntime::_register_rectangle() {
 	};
 
 	const auto subtract = [](lua_State *L) {
-		Rectangle a = **static_cast<Rectangle **>(luaL_checkudata(L, 1, META));
-		Rectangle b = **static_cast<Rectangle **>(luaL_checkudata(L, 2, META));
+		Rect a = **static_cast<Rect **>(luaL_checkudata(L, 1, META));
+		Rect b = **static_cast<Rect **>(luaL_checkudata(L, 2, META));
 		
 #ifdef __WIN32
-		Rectangle *res = static_cast<Rectangle *>(_aligned_malloc(16, sizeof(Rectangle)));
+		Rect *res = static_cast<Rect *>(_aligned_malloc(16, sizeof(Rect)));
 #else
-		Rectangle *res = static_cast<Rectangle *>(aligned_alloc(16, sizeof(Rectangle)));
+		Rect *res = static_cast<Rect *>(aligned_alloc(16, sizeof(Rect)));
 #endif
 		*res = a - b;
 
-		Rectangle **udata = static_cast<Rectangle **>(lua_newuserdata(L, sizeof(Rectangle*)));
+		Rect **udata = static_cast<Rect **>(lua_newuserdata(L, sizeof(Rect *)));
 		*udata = res;
 
 		luaL_getmetatable(L, META);
@@ -229,13 +229,13 @@ void LuaRuntime::_register_rectangle() {
 	};
 
 	const auto multiply = [](lua_State *L) {
-		Rectangle *v = nullptr;
+		Rect *v = nullptr;
 		float n = 0.0f;
 		
-		if ((v = *static_cast<Rectangle **>(luaL_testudata(L, 1, META))) != nullptr && lua_isnumber(L, 2)) {
+		if ((v = *static_cast<Rect **>(luaL_testudata(L, 1, META))) != nullptr && lua_isnumber(L, 2)) {
 			n = static_cast<float>(lua_tonumber(L, 2));
 		}
-		else if ((v = *static_cast<Rectangle **>(luaL_testudata(L, 2, META))) != nullptr && lua_isnumber(L, 1)) {
+		else if ((v = *static_cast<Rect **>(luaL_testudata(L, 2, META))) != nullptr && lua_isnumber(L, 1)) {
 
 			n = static_cast<float>(lua_tonumber(L, 1));
 		}
@@ -244,16 +244,16 @@ void LuaRuntime::_register_rectangle() {
 		}
 
 #ifdef __WIN32
-		Vector *res = static_cast<Vector *>(_aligned_malloc(16, sizeof(Vector)));
+		Rect *res = static_cast<Rect *>(_aligned_malloc(16, sizeof(Rect)));
 #else
-		Rectangle *res = static_cast<Rectangle *>(aligned_alloc(16, sizeof(Rectangle)));
+		Rect *res = static_cast<Rect *>(aligned_alloc(16, sizeof(Rect)));
 #endif
 
 		auto r = *v * n;
 			
 		*res = r;
 
-		Rectangle **udata = static_cast<Rectangle **>(lua_newuserdata(L, sizeof(Rectangle*)));
+		Rect **udata = static_cast<Rect **>(lua_newuserdata(L, sizeof(Rect *)));
 		*udata = res;
 
 		//*res = (*v) * n;
@@ -265,13 +265,13 @@ void LuaRuntime::_register_rectangle() {
 	};
 	
 	const auto divide = [](lua_State *L) {
-		Rectangle *v = nullptr;
+		Rect *v = nullptr;
 		float n = 0.0f;
 		
-		if ((v = *static_cast<Rectangle **>(luaL_testudata(L, 1, META))) != nullptr && lua_isnumber(L, 2)) {
+		if ((v = *static_cast<Rect **>(luaL_testudata(L, 1, META))) != nullptr && lua_isnumber(L, 2)) {
 			n = static_cast<float>(lua_tonumber(L, 2));
 		}
-		else if ((v = *static_cast<Rectangle **>(luaL_testudata(L, 2, META))) != nullptr && lua_isnumber(L, 1)) {
+		else if ((v = *static_cast<Rect **>(luaL_testudata(L, 2, META))) != nullptr && lua_isnumber(L, 1)) {
 
 			n = static_cast<float>(lua_tonumber(L, 1));
 		}
@@ -280,16 +280,16 @@ void LuaRuntime::_register_rectangle() {
 		}
 
 #ifdef __WIN32
-		Rectangle *res = static_cast<Rectangle *>(_aligned_malloc(16, sizeof(Rectangle)));
+		Rect *res = static_cast<Rect *>(_aligned_malloc(16, sizeof(Rect)));
 #else
-		Rectangle *res = static_cast<Rectangle *>(aligned_alloc(16, sizeof(Rectangle)));
+		Rect *res = static_cast<Rect *>(aligned_alloc(16, sizeof(Rect)));
 #endif
 
 		auto r = *v / n;
 			
 		*res = r;
 
-		Rectangle **udata = static_cast<Rectangle **>(lua_newuserdata(L, sizeof(Rectangle*)));
+		Rect **udata = static_cast<Rect **>(lua_newuserdata(L, sizeof(Rect *)));
 		*udata = res;
 
 		//*res = (*v) * n;
@@ -300,8 +300,8 @@ void LuaRuntime::_register_rectangle() {
 		return 1;
 	};
 	const auto equals = [](lua_State *L) {
-		Rectangle a = **static_cast<Rectangle **>(luaL_checkudata(L, 1, META));
-		Rectangle b = **static_cast<Rectangle **>(luaL_checkudata(L, 2, META));
+		Rect a = **static_cast<Rect **>(luaL_checkudata(L, 1, META));
+		Rect b = **static_cast<Rect **>(luaL_checkudata(L, 2, META));
 		
 		bool res = a == b;
 
@@ -311,7 +311,7 @@ void LuaRuntime::_register_rectangle() {
 	};
 
 	const auto tostring = [](lua_State *L) {
-		Rectangle *v = *static_cast<Rectangle **>(luaL_checkudata(L, 1, META));
+		Rect *v = *static_cast<Rect **>(luaL_checkudata(L, 1, META));
 		
 		auto str = v->tostring();	
 

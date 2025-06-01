@@ -2,332 +2,153 @@
 #include <immintrin.h>
 #endif
 
-#include <vector>
-#include <cstdint>
-#include <memory>
+#include <sstream>
 #include <cstring>
-#include <algorithm>
-#include <cstddef>
+#include <string>
 
 #include <Orbit/image.h>
-#include <Orbit/color.h>
 #include <Orbit/rect.h>
 #include <Orbit/quad.h>
-#include <Orbit/point.h>
-#include <Orbit/vector.h>
 
-using Orbit::Lua::Image;
-using Orbit::Lua::Vector;
-using Orbit::Lua::Color;
-using Orbit::Lua::Rectangle;
+#include <raylib.h>
 
-inline Vector normalize(const Rectangle &rect, const Image &image) {
-	return Vector(
-			static_cast<float>(rect.left() / image.width()), 
-			static_cast<float>(rect.top() / image.height()), 
-			static_cast<float>(rect.right() / image.width()), 
-			static_cast<float>(rect.bottom() / image.height())
-	);
+extern "C" {
+    #include <lua.h>
+    #include <lauxlib.h>
+    #include <lualib.h>
 }
 
-inline bool is_rect_in_image(const Image &image, const Rectangle &rect) {
-	return rect.left() > image.width() || 
-			rect.top() > image.height() || 
-			rect.right() < 0 || 
-			rect.bottom() < 0;
-}
+#define META "image"
 
-void fill_image(uint8_t *data, int width, int height, uint32_t color) {
+Image MakeSilhouette(const Image *src) {
+	if (src->format != PIXELFORMAT_UNCOMPRESSED_R8G8B8A8) {
+		throw std::runtime_error("unsupported image format");
+	}
+
+	Image silhouette = ImageCopy(*src);
+
+	Color *pixels = reinterpret_cast<Color *>(silhouette.data);
+
+	const int length = silhouette.width * silhouette.height;
+
 #ifdef AVX2
-	auto total_size = width * height * 4;
 
-	__m256i color_vec = _mm256_set1_epi32(static_cast<int32_t>(color));
+	const int stride = 8;
+	const int iters = length / stride;
 
-	size_t i = 0;
-	for (; i + 31 < total_size; i += 32) {
-		_mm256_storeu_si256(reinterpret_cast<__m256i *>(data + i), color_vec);
+	const __m256i white = _mm256_set1_epi32(0xFFFFFFFF);
+	const __m256i black = _mm256_set1_epi32(0xFF000000);
+
+	for (int i = 0; i < iters; i++) {
+		__m256i pixels_vec = _mm256_loadu_si256(reinterpret_cast<const __m256i *>(&pixels[i * stride]));
+		
+		__m256i is_white = _mm256_cmpeq_epi32(pixels_vec, white);
+
+		__m256i result = _mm256_blendv_epi8(black, white, is_white);
+
+		_mm256_storeu_si256(reinterpret_cast<__m256i *>(&pixels[i * stride]), result);
 	}
 
-	for (; i < total_size; i += 4) {
-		*reinterpret_cast<uint32_t *>(data + i) = color;
+	for (int i = iters * stride; i < length; i++) {
+		Color *p = pixels + i;
+
+		if (p->r == 255 && p->g == 255 && p->b == 255 && p->a == 255) continue;
+
+		*p = Color{ 0, 0, 0, 255 };
 	}
+
 #else
-	for (int i = 0; i < width * height * 4; i += 4) {
-		*data = color.r;
-		*(data + 1) = color.g;
-		*(data + 2) = color.b;
-		*(data + 3) = color.a;
+
+	for (int i = 0; i < length; i++) {
+		Color *p = pixels + i;
+
+		if (p->r == 255 && p->g == 255 && p->b == 255 && p->a == 255) continue;
+
+		*p = Color{ 0, 0, 0, 255 };
 	}
-#endif
+
+#endif	
+
+	return silhouette;
 }
 
-void imgcpy_darkest(
-		const Image &src, 
-		Image &dest, 
-		
-		int srcx, 
-		int srcy, 
-		int srcw, 
-		int srch, 
-		
-		int destx, 
-		int desty, 
-		int destw, 
-		int desth
-		) {
-	
+//
+
+int image_tostring(lua_State *L) {
+	Image *img = static_cast<Image *>(luaL_checkudata(L, 1, META));
+
+	std::stringstream ss;
+
+	ss << META << '('
+		<< img->width <<
+		", " << img->height << ')';
+
+	auto str = ss.str();
+
+	lua_pushstring(L, str.c_str());
+
+	return 1;
 }
 
-void imgcpy_ink(
-		const Image &src, 
-		Image &dest, 
+int image_index(lua_State *L) {
+	Image *img = static_cast<Image *>(luaL_checkudata(L, 1, META));
+	const char *field = luaL_checkstring(L, 2);
 
-		int srcx, 
-		int srcy, 
-		int srcw, 
-		int srch, 
+	if (std::strcmp(field, "width") == 0) lua_pushnumber(L, img->width);
+	else if (std::strcmp(field, "height") == 0) lua_pushnumber(L, img->height);
+	else if (std::strcmp(field, "silhouette") == 0) 
+		lua_pushcfunction(L, [](lua_State *L){ 
+				Image *img = static_cast<Image *>(luaL_checkudata(L, 1, META));
 
-		int destx, 
-		int desty, 
-		int destw, 
-		int desth, 
-		
-		Orbit::Lua::Color color
-		) {
-	
+				Image *nimg = static_cast<Image *>(lua_newuserdata(L, sizeof(Image)));
+				*nimg = MakeSilhouette(img);
+
+				luaL_getmetatable(L, META);
+				lua_setmetatable(L, -2);
+
+				return 1; 
+		});
+	else lua_pushnil(L);
+
+	return 1;
 }
 
-void imgcpy_rmbkg(
-		const Image &src, 
-		Image &dest, 
-		
-		int srcx, 
-		int srcy, 
-		int srcw, 
-		int srch, 
-		
-		int destx, 
-		int desty, 
-		int destw, 
-		int desth
-		) {
-	
+int image_eq(lua_State *L) {
+	Image *a = static_cast<Image *>(luaL_checkudata(L, 1, META));
+	Image *b = static_cast<Image *>(luaL_checkudata(L, 2, META));
+
+	lua_pushboolean(L, a == b);
+
+	return 1;
 }
 
-void imgcpy(
-		const Image &src, 
-		Image &dest, 
-		
-		const Rectangle &src_rect, 
-		const Rectangle &dest_rect
-		) {
-	
-	if (
-			!is_rect_in_image(src, src_rect) ||
-			!is_rect_in_image(dest, dest_rect)
-	) return;
-
-    auto sample_normal = normalize(src_rect, src);
-
-
+int image_gc(lua_State *L) {
+	Image *img = static_cast<Image *>(luaL_checkudata(L, 1, META));
+	UnloadImage(*img);
+	free(img);
+	return 0;
 }
 
 namespace Orbit::Lua {
 
-Mask::Mask(int width, int height) : width(width), height(height) {
-	data = std::vector<uint8_t>(width * height * depth, 0);
-}
+void LuaRuntime::_register_image() {
 
-Mask::Mask(int width, int height, const std::vector<uint8_t> &data) : width(width), height(height), data(data) {}
+	luaL_newmetatable(L, META);
 
-Mask::Mask(int width, int height, const uint8_t *data) : width(width), height(height) {
-	this->data = std::vector<uint8_t>(data, data + width * height * depth);
-}
+	lua_pushcfunction(L, image_tostring);
+	lua_setfield(L, -2, "__tostring");
 
-ImageCopyParams::ImageCopyParams() : ink(ImageCopyInk::None), blend(0), color(Color(255, 255, 255, 255)), mask(Mask(0, 0)) {}
+	lua_pushcfunction(L, image_index);
+	lua_setfield(L, -2, "__index");
 
-ImageCopyParams::ImageCopyParams(ImageCopyInk ink, float blend, Color color, Mask mask) : ink(ink), blend(blend), color(color), mask(mask) {}
+	lua_pushcfunction(L, image_eq);
+	lua_setfield(L, -2, "__eq");
 
-//
+	lua_pushcfunction(L, image_gc);
+	lua_setfield(L, -2, "__gc");
 
-Image Image::crop(const Rectangle &rect) const {
-	if (!is_rect_in_image(*this, rect)) {
-		throw std::runtime_error("out-of-bounds image rect");
-	}
+	lua_pop(L, 1);
 
-	auto nimg = Image(static_cast<int>(rect.width()), static_cast<int>(rect.height()));
-	
-#ifdef AVX2
-	const int src_stride = _width * 4;
-	const int dest_stride = nimg.width() * 4;
-	
-	const uint8_t *starting_pos = _data + static_cast<int>(rect.top())*src_stride + static_cast<int>(rect.left()) * 4;
-	uint8_t *dest_pos = nimg._data;
-
-	const int bytes_per_row = static_cast<int>(rect.width()) * 4;
-
-	const int pixels_per_iter = 8;
-	const int bytes_per_iter = 32;
-
-	const int full_avx2_iters = bytes_per_row / bytes_per_iter;
-	const int remaining_bytes = bytes_per_row % bytes_per_iter;
-
-	for (int row = 0; row < static_cast<int>(rect.height()); row++) {
-		const uint8_t *src_row = _data + (row * src_stride);
-		uint8_t *dest_row = dest_pos + (row * dest_stride);
-		
-		int byte_offset = 0;
-
-		for (int i = 0; i < full_avx2_iters; i++) {
-			__m256i pixels = _mm256_loadu_si256(
-					reinterpret_cast<const __m256i *>(src_row + byte_offset)
-					);
-
-			_mm256_storeu_si256(
-					reinterpret_cast<__m256i *>(dest_row + byte_offset),
-					pixels
-					);
-
-			byte_offset += bytes_per_iter;
-		}
-
-		if (remaining_bytes > 0) {
-			std::memcpy(dest_row + byte_offset, src_row + byte_offset, remaining_bytes);
-		}
-	}
-#else
-	for (
-			int x = 0; 
-			x < static_cast<int>(rect.width()) * 4; 
-			x += 4) {
-
-		for (
-				int y = 0;
-				y < static_cast<int>(rect.height()) * 4;
-				y += 4
-				) {
-
-			int ix = x + static_cast<int>(rect.left()) * 4;
-			int iy = y + static_cast<int>(rect.top()) * 4;
-
-			int dest_index = x + (y * static_cast<int>(rect.width()) * 4);
-			int src_index = ix + (iy * static_cast<int>(rect.width()) * 4);
-		
-			*(nimg._data + dest_index + 0) = *(_data + src_index + 0);
-			*(nimg._data + dest_index + 1) = *(_data + src_index + 1);
-			*(nimg._data + dest_index + 2) = *(_data + src_index + 2);
-			*(nimg._data + dest_index + 3) = *(_data + src_index + 3);
-		}
-	}
-#endif
-
-	return nimg;
-}
-
-void Image::copy_to(
-		Image &img, 
-		const Rectangle &source, 
-		const Rectangle &dest, 
-		const ImageCopyParams &options
-		) {
-
-}
-
-void Image::copy_to(
-		Image &img, 
-		const Rectangle &source, 
-		const Quad &dest, 
-		const ImageCopyParams &options
-		) {
-
-}
-
-Image &Image::operator=(Image &&image) noexcept {
-	if (this == &image) return *this;
-
-	std::free(_data);
-	
-	#ifdef __WIN32
-	_data = static_cast<uint8_t *>(_aligned_malloc(16, _width * _height * 4));
-	#else
-	_data = static_cast<uint8_t *>(aligned_alloc(16, _width * _height * 4));
-	#endif
-
-	std::memcpy(_data, image._data, image.size());
-
-	_width = image.width();
-	_height = image.height();
-
-	std::free(image._data);
-	image._width = 0;
-	image._height = 0;
-
-	return *this;
-}
-
-Image &Image::operator=(const Image &image) {
-	if (this == &image) return *this;
-
-	std::free(_data);
-	
-	#ifdef __WIN32
-	_data = static_cast<uint8_t *>(_aligned_malloc(16, _width * _height * 4));
-	#else
-	_data = static_cast<uint8_t *>(aligned_alloc(16, _width * _height * 4));
-	#endif
-
-	std::memcpy(_data, image._data, image.size());
-
-	_width = image.width();
-	_height = image.height();
-
-	return *this;
-}
-
-Image::Image(Image &&image) noexcept : _width(image.width()), _height(image.height()) {
-	#ifdef __WIN32
-	_data = static_cast<uint8_t *>(_aligned_malloc(16, _width * _height * 4));
-	#else
-	_data = static_cast<uint8_t *>(aligned_alloc(16, _width * _height * 4));
-	#endif
-	
-	std::memcpy(_data, image._data, image.size());
-
-	std::free(image._data);
-	image._width = 0;
-	image._height = 0;
-}
-
-Image::Image(const Image &image) : _width(image.width()), _height(image.height()) {
-	#ifdef __WIN32
-	_data = static_cast<uint8_t *>(_aligned_malloc(16, _width * _height * 4));
-	#else
-	_data = static_cast<uint8_t *>(aligned_alloc(16, _width * _height * 4));
-	#endif
-
-	std::memcpy(_data, image._data, image.size());
-}
-
-Image::Image(int width, int height) : _width(width), _height(height) {
-	#ifdef __WIN32
-	_data = static_cast<uint8_t *>(_aligned_malloc(16, _width * _height * 4));
-	#else
-	_data = static_cast<uint8_t *>(aligned_alloc(16, width * height * 4));
-	#endif
-}
-
-Image::Image(int width, int height, Color color) : _width(width), _height(height) {
-	#ifdef __WIN32
-	_data = static_cast<uint8_t *>(_aligned_malloc(16, width * height * 4));
-	#else
-	_data = static_cast<uint8_t *>(aligned_alloc(16, width * height * 4));
-	#endif
-
-	fill_image(_data, width, height, _packed_default_color);	
-}
-
-Image::~Image() {
-	std::free(_data);
 }
 
 };
