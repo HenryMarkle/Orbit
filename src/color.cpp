@@ -1,9 +1,10 @@
-#include <iostream>
 #include <cstring>
 #include <cstdint>
+#include <sstream>
 
 #include <Orbit/lua.h>
-#include <Orbit/color.h>
+
+#include <raylib.h>
 
 extern "C" {
     #include <lua.h>
@@ -13,7 +14,21 @@ extern "C" {
 
 namespace Orbit::Lua {
 
+inline uint32_t pack(const Color *c) {
+	return static_cast<uint32_t>(c->a << 24) | 
+			static_cast<uint32_t>(c->b << 16) | 
+			static_cast<uint32_t>(c->g << 8) | 
+			static_cast<uint32_t>(c->r);
+}
 
+int color_pack(lua_State *L) {
+	Color *c = static_cast<Color *>(luaL_checkudata(L, 1, "color"));
+		
+	uint32_t packed = pack(c);
+	
+	lua_pushinteger(L, packed);
+	return 1;
+}
 
 void LuaRuntime::_register_color() {
 	const auto read = [](lua_State *L) {
@@ -24,6 +39,7 @@ void LuaRuntime::_register_color() {
 		else if (std::strcmp(field, "g") == 0) lua_pushnumber(L, p->g);
 		else if (std::strcmp(field, "b") == 0) lua_pushnumber(L, p->b);
 		else if (std::strcmp(field, "a") == 0) lua_pushnumber(L, p->a);
+		else if (std::strcmp(field, "pack") == 0) lua_pushcfunction(L, color_pack);
 		else lua_pushnil(L);
 
 		return 1;
@@ -51,7 +67,12 @@ void LuaRuntime::_register_color() {
 
 		Color *res = static_cast<Color *>(lua_newuserdata(L, sizeof(Color)));
 
-		*res = a + b;
+		*res = Color {
+			static_cast<uint8_t>(a.r + b.r),
+			static_cast<uint8_t>(a.g + b.g),
+			static_cast<uint8_t>(a.b + b.b),
+			static_cast<uint8_t>(a.a + b.a),
+		};
 
 		luaL_getmetatable(L, "color");
 		lua_setmetatable(L, -2);
@@ -64,7 +85,13 @@ void LuaRuntime::_register_color() {
 		Color b = *static_cast<Color *>(luaL_checkudata(L, 2, "color"));
 		
 		Color *res = static_cast<Color *>(lua_newuserdata(L, sizeof(Color)));
-		*res = a - b;
+		*res = Color {
+			static_cast<uint8_t>(a.r - b.r),
+			static_cast<uint8_t>(a.g - b.g),
+			static_cast<uint8_t>(a.b - b.b),
+			static_cast<uint8_t>(a.a - b.a),
+		};
+;
 
 		luaL_getmetatable(L, "color");
 		lua_setmetatable(L, -2);
@@ -76,7 +103,12 @@ void LuaRuntime::_register_color() {
 		Color a = *static_cast<Color *>(luaL_checkudata(L, 1, "color"));
 		Color b = *static_cast<Color *>(luaL_checkudata(L, 2, "color"));
 		
-		bool res = a == b;
+		bool res = (
+			a.r == b.r &&
+			a.g == b.g &&
+			a.b == b.b &&
+			a.a == b.a
+		);
 
 		lua_pushboolean(L, res);
 
@@ -85,7 +117,16 @@ void LuaRuntime::_register_color() {
 
 	const auto tostring = [](lua_State *L) {
 		Color *a = static_cast<Color *>(luaL_checkudata(L, 1, "color"));
-		auto str = a->tostring();
+			
+		std::stringstream ss;
+
+		ss << "color(" <<
+			static_cast<unsigned short>(a->r) << ", " <<
+			static_cast<unsigned short>(a->g) << ", " <<
+			static_cast<unsigned short>(a->b) << ", " <<
+			static_cast<unsigned short>(a->a) << ')';
+
+		auto str = ss.str();
 		lua_pushstring(L, str.c_str());
 		return 1;
 	};

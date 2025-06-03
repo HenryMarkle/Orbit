@@ -45,8 +45,12 @@ int main(int, char**) {
 
 	logger->info(std::string("Orbit v") + APP_VERSION);
 
-
 	
+	logger->info("initializing window");
+
+	InitWindow(1400, 800, "Orbit Runtime");
+
+
 	logger->info("initializing runtime");
 
 	auto rt = Orbit::Lua::LuaRuntime(paths);
@@ -56,10 +60,6 @@ int main(int, char**) {
 	rt.load_directory(paths->scripts());
 
 
-
-	logger->info("initializing window");
-
-	InitWindow(1400, 800, "Orbit Runtime");
 
 
 	while (!WindowShouldClose()) {

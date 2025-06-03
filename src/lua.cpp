@@ -3,8 +3,6 @@
 
 #include <Orbit/lua.h>
 #include <Orbit/paths.h>
-#include <Orbit/point.h>
-#include <Orbit/vector.h>
 
 extern "C" {
     #include <lua.h>
@@ -20,6 +18,7 @@ void LuaRuntime::_register_lib() {
 	_register_rectangle();
 	_register_color();
 	_register_quad();
+	_register_image();
 	_register_utils();
 }
 

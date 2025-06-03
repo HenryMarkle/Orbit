@@ -4,7 +4,6 @@
 #include <Orbit/lua.h>
 #include <Orbit/vector.h>
 #include <Orbit/point.h>
-#include <Orbit/color.h>
 #include <Orbit/rect.h>
 #include <Orbit/quad.h>
 
@@ -221,27 +220,39 @@ int make_rect(lua_State *L) {
 int make_color(lua_State *L) {
 	int argcount = lua_gettop(L);
     
-	Orbit::Lua::Color *p = static_cast<Orbit::Lua::Color *>(lua_newuserdata(L, sizeof(Orbit::Lua::Color)));
 	
 	if (argcount == 0) {
-		*p = Orbit::Lua::Color();
+		Color *p = static_cast<Color *>(lua_newuserdata(L, sizeof(Color)));
+		*p = Color();
 	}
 	else if (argcount == 1) {
-		Orbit::Lua::Color *arg = nullptr;
-
+		Color *arg = nullptr;
 	
-		if ((arg = static_cast<Orbit::Lua::Color *>(luaL_testudata(L, 1, "color")))) {
-			*p = Orbit::Lua::Color(*arg);
+		if ((arg = static_cast<Color *>(luaL_testudata(L, 1, "color")))) {
+			Color *p = static_cast<Color *>(lua_newuserdata(L, sizeof(Color)));
+			*p = Color(*arg);
 		}
 		else {
-			p->r = lua_tonumber(L, 1);
-			p->g = 255;
-			p->b = 255;
-			p->a = 255;
+			Color *p = static_cast<Color *>(lua_newuserdata(L, sizeof(Color)));
+			uint32_t packed = static_cast<uint32_t>(luaL_checkinteger(L, 1));
+			
+			p->r = static_cast<uint8_t>(packed & 0xFF);
+			p->g = static_cast<uint8_t>((packed >>  8) & 0xFF);
+			p->b = static_cast<uint8_t>((packed >> 16) & 0xFF);
+			p->a = static_cast<uint8_t>((packed >> 24) & 0xFF);
 		}
 	}
+	else if (argcount == 3) {
+		Color *p = static_cast<Color *>(lua_newuserdata(L, sizeof(Color)));
+		
+		p->r = lua_tonumber(L, 1);
+		p->g = lua_tonumber(L, 2);
+		p->b = lua_tonumber(L, 3);
+		p->a = 255;
+	}
 	else {
-		*p = Orbit::Lua::Color();
+		Color *p = static_cast<Color *>(lua_newuserdata(L, sizeof(Color)));
+		*p = Color();
 		
 		if (lua_isnumber(L, 1)) p->r = lua_tonumber(L, 1);
 		if (lua_isnumber(L, 2)) p->g = lua_tonumber(L, 2);
@@ -329,7 +340,8 @@ int rotate(lua_State *L) {
 
 	if (
 			(p1 = luaL_testudata(L, 1, "point")) != nullptr
-		) {
+		) 
+		{
 		return rotate_point(L, static_cast<Point *>(p1), degrees, center);
 	}
 	else if (
@@ -531,7 +543,7 @@ int make_image(lua_State *L) {
 			case 3: {
 				int width = luaL_checkinteger(L, 1);
 				int height = luaL_checkinteger(L, 2);
-				Orbit::Lua::Color *color = static_cast<Orbit::Lua::Color *>(luaL_checkudata(L, 3, "color"));
+				Color *color = static_cast<Color *>(luaL_checkudata(L, 3, "color"));
 
 				Image nimg = GenImageColor(width, height, { color->r, color->g, color->b, color->a });
 				Image *img = static_cast<Image *>(lua_newuserdata(L, sizeof(Image)));

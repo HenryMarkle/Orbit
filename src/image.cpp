@@ -72,7 +72,34 @@ Image MakeSilhouette(const Image *src) {
 	return silhouette;
 }
 
+void FillImage(Image *img, Color c) {
+
+}
+
+void FillImage(Image *img, Color c, const Rectangle &r) {
+
+}
+
+void CopyImage_GPU(const Image *src, Image *dst, const Rectangle &from, const Rectangle &to) {
+
+}
+
+void CopyImage_CPU(const Image *src, Image *dst, const Rectangle &from, const Rectangle &to) {
+
+}
+
+void CopyImage_GPU(const Image *src, Image *dst, const Rectangle &from, const Orbit::Lua::Quad &to) {
+
+}
+
+void CopyImage_CPU(const Image *src, Image *dst, const Rectangle &from, const Orbit::Lua::Quad &to) {
+
+}
 //
+
+int image_fill(lua_State *L) {
+	return 0;
+}
 
 int image_tostring(lua_State *L) {
 	Image *img = static_cast<Image *>(luaL_checkudata(L, 1, META));
@@ -125,7 +152,6 @@ int image_eq(lua_State *L) {
 int image_gc(lua_State *L) {
 	Image *img = static_cast<Image *>(luaL_checkudata(L, 1, META));
 	UnloadImage(*img);
-	free(img);
 	return 0;
 }
 
