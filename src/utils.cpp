@@ -556,7 +556,18 @@ int make_image(lua_State *L) {
 		lua_setmetatable(L, -2);
 
 		return 1;
-	};
+};
+
+int random_seed(lua_State *L) {
+	int seed = lua_tointeger(L, 1);
+
+	return 0;
+}
+
+int random_gen(lua_State *L) {
+	lua_pushinteger(L, 0);
+	return 1;
+}
 
 namespace Orbit::Lua {
 
@@ -595,6 +606,12 @@ void LuaRuntime::_register_utils() {
 
 	lua_pushcfunction(L, make_image);
 	lua_setglobal(L, "image");
+
+	lua_pushcfunction(L, random_seed);
+	lua_setglobal(L, "seed");
+
+	lua_pushcfunction(L, random_gen);
+	lua_setglobal(L, "random");
 }
 
 };
