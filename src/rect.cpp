@@ -1,7 +1,3 @@
-#ifdef AVX2
-#include <immintrin.h>
-#endif
-
 #include <string>
 #include <iostream>
 #include <iomanip>
@@ -12,6 +8,8 @@
 
 #include <Orbit/lua.h>
 #include <Orbit/rect.h>
+
+#include <xsimd/xsimd.hpp>
 
 extern "C" {
     #include <lua.h>
@@ -28,135 +26,98 @@ std::string Rect::tostring() const {
 
 		ss 
 			<< META << '(' 
-			<< std::setprecision(4) << data[0] << ", "
-			<< std::setprecision(4) << data[1] << ", "
-			<< std::setprecision(4) << data[2] << ", "
-			<< std::setprecision(4) << data[3] << ")";
+			<< std::setprecision(4) << _data[0] << ", "
+			<< std::setprecision(4) << _data[1] << ", "
+			<< std::setprecision(4) << _data[2] << ", "
+			<< std::setprecision(4) << _data[3] << ")";
 
 		return ss.str();
 }
 
 Rect Rect::operator+(Rect const &v) const {
-#ifdef AVX2
-	auto a = _mm_load_ps(this->data);
-	auto b = _mm_load_ps(v.data);
+	auto ba = xsimd::load_aligned(_data);
+	auto bb = xsimd::load_aligned(v._data);
 
-	auto res = _mm_add_ps(a, b);
+	auto res = ba + bb;
 
-	Rect res_vec(0, 0, 0, 0);
-	_mm_store_ps(res_vec.data, res);
-	
-	return res_vec;
-#else
-	return Rect(
-			data[0] + v.data[0],
-			data[1] + v.data[1],
-			data[2] + v.data[2],
-			data[3] + v.data[3]
-		);
-#endif
+	auto res_rect = Rect();
+
+	res.store_aligned(res_rect._data);
+
+	return res_rect;
 }
 
 Rect Rect::operator-(Rect const &v) const {
-#ifdef AVX2
-	auto a = _mm_load_ps(this->data);
-	auto b = _mm_load_ps(v.data);
+	auto ba = xsimd::load_aligned(_data);
+	auto bb = xsimd::load_aligned(v._data);
 
-	auto res = _mm_sub_ps(a, b);
+	auto res = ba - bb;
 
-	Rect res_vec(0, 0, 0, 0);
-	_mm_store_ps(res_vec.data, res);
-	
-	return res_vec;
-#else
-	return Rect(
-			data[0] - v.data[0],
-			data[1] - v.data[1],
-			data[2] - v.data[2],
-			data[3] - v.data[3]
-		);
-#endif
+	auto res_rect = Rect();
+
+	res.store_aligned(res_rect._data);
+
+	return res_rect;
 }
 
 Rect Rect::operator*(float f) const {
-#ifdef AVX2
-	auto v = _mm_load_ps(this->data);
-	auto fv = _mm_set1_ps(f);
-	
-	auto res = _mm_mul_ps(v, fv);
+	auto ba = xsimd::load_aligned(_data);
 
-	Rect res_vec(0, 0, 0, 0);
-	_mm_store_ps(res_vec.data, res);
+	auto res = ba * f;
 
-	return res_vec;
-#else
-	return Rect(
-			data[0] * f,
-			data[1] * f,
-			data[2] * f,
-			data[3] * f
-		);
-#endif
+	auto res_rect = Rect();
+
+	res.store_aligned(res_rect._data);
+
+	return res_rect;
 }
 
 Rect Rect::operator/(float f) const {
-#ifdef AVX2
-	auto v = _mm_loadu_ps(this->data);
-	auto fv = _mm_set1_ps(f);
-	
-	auto res = _mm_div_ps(v, fv);
+	auto ba = xsimd::load_aligned(_data);
 
-	Rect res_vec(0, 0, 0, 0);
-	_mm_storeu_ps(res_vec.data, res);
+	auto res = ba / f;
 
-	return res_vec;
-#else
-	return Rect(
-			data[0] / f,
-			data[1] / f,
-			data[2] / f,
-			data[3] / f
-		);
-#endif
+	auto res_rect = Rect();
+
+	res.store_aligned(res_rect._data);
+
+	return res_rect;
 }
 
 Rect &Rect::operator=(Rect const &v) {
-	std::memcpy(this->data, v.data, sizeof(float) * 4);
+	std::memcpy(this->_data, v._data, sizeof(float) * 4);
 	return *this;
 }
 
 Rect::Rect(Rect const &v) {
-	std::memcpy(data, v.data, sizeof(float) * 4);
+	std::memcpy(this->_data, v._data, sizeof(float) * 4);
 }
 
 Rect::Rect() {
-	std::memset(data, 0, sizeof(float) * 4);
+	std::memset(_data, 0, sizeof(float) * 4);
 }
 
 void LuaRuntime::_register_rectangle() {
+
 	const auto make = [](lua_State *L) {
 		float x = luaL_checknumber(L, 1);
 		float y = luaL_checknumber(L, 2);
 		float z = luaL_checknumber(L, 3);
 		float w = luaL_checknumber(L, 4);
 
-#ifdef _WIN32
-		Rect *p = static_cast<Rect *>(_aligned_malloc(16, sizeof(Rect)));
-#else
-		Rect *p = static_cast<Rect *>(aligned_alloc(16, sizeof(Rect)));
-#endif
+		Rect *p = new Rect();
 
-		p->data[0] = x;
-		p->data[1] = y;
-		p->data[2] = z;
-		p->data[3] = w;
+		p->_data[0] = x;
+		p->_data[1] = y;
+		p->_data[2] = z;
+		p->_data[3] = w;
 
 		Rect **udata = static_cast<Rect **>(lua_newuserdata(L, sizeof(Rect *)));
 		*udata = p;
 
 		luaL_getmetatable(L, META);
 		lua_setmetatable(L, -2);
-	
+
 		return 1;
 	};
 
@@ -164,10 +125,10 @@ void LuaRuntime::_register_rectangle() {
 		Rect *p = *static_cast<Rect **>(luaL_checkudata(L, 1, META));
 		const char *field = luaL_checkstring(L, 2);
 
-		if (std::strcmp(field, "left") == 0) lua_pushnumber(L, p->data[0]);
-		else if (std::strcmp(field, "top") == 0) lua_pushnumber(L, p->data[1]);
-		else if (std::strcmp(field, "right") == 0) lua_pushnumber(L, p->data[2]);
-		else if (std::strcmp(field, "bottom") == 0) lua_pushnumber(L, p->data[3]);
+		if (std::strcmp(field, "left") == 0) lua_pushnumber(L, p->_data[0]);
+		else if (std::strcmp(field, "top") == 0) lua_pushnumber(L, p->_data[1]);
+		else if (std::strcmp(field, "right") == 0) lua_pushnumber(L, p->_data[2]);
+		else if (std::strcmp(field, "bottom") == 0) lua_pushnumber(L, p->_data[3]);
 		else lua_pushnil(L);
 
 		return 1;
@@ -179,10 +140,10 @@ void LuaRuntime::_register_rectangle() {
 		const char *field = luaL_checkstring(L, 2);
 		float value = luaL_checknumber(L, 3);
 
-		if (std::strcmp(field, "left") == 0) p->data[0] = value;
-		else if (std::strcmp(field, "top") == 0) p->data[1] = value;
-		else if (std::strcmp(field, "right") == 0) p->data[2] = value;
-		else if (std::strcmp(field, "bottom") == 0) p->data[3] = value;
+		if (std::strcmp(field, "left") == 0) p->_data[0] = value;
+		else if (std::strcmp(field, "top") == 0) p->_data[1] = value;
+		else if (std::strcmp(field, "right") == 0) p->_data[2] = value;
+		else if (std::strcmp(field, "bottom") == 0) p->_data[3] = value;
 		else luaL_error(L, "invalid field '%s' in rectangle", field);
 
 		return 0;
@@ -192,11 +153,7 @@ void LuaRuntime::_register_rectangle() {
 		Rect a = **static_cast<Rect **>(luaL_checkudata(L, 1, META));
 		Rect b = **static_cast<Rect **>(luaL_checkudata(L, 2, META));
 		
-#ifdef _WIN32
-		Rect *res = static_cast<Rect *>(_aligned_malloc(16, sizeof(Rect)));
-#else
-		Rect *res = static_cast<Rect *>(aligned_alloc(16, sizeof(Rect)));
-#endif
+		Rect *res = new Rect();
 		*res = a + b;
 
 		Rect **udata = static_cast<Rect **>(lua_newuserdata(L, sizeof(Rect *)));
@@ -212,11 +169,7 @@ void LuaRuntime::_register_rectangle() {
 		Rect a = **static_cast<Rect **>(luaL_checkudata(L, 1, META));
 		Rect b = **static_cast<Rect **>(luaL_checkudata(L, 2, META));
 		
-#ifdef _WIN32
-		Rect *res = static_cast<Rect *>(_aligned_malloc(16, sizeof(Rect)));
-#else
-		Rect *res = static_cast<Rect *>(aligned_alloc(16, sizeof(Rect)));
-#endif
+		Rect *res = new Rect();
 		*res = a - b;
 
 		Rect **udata = static_cast<Rect **>(lua_newuserdata(L, sizeof(Rect *)));
@@ -243,11 +196,7 @@ void LuaRuntime::_register_rectangle() {
 			return luaL_error(L, "invalid operands to rectangle multiplication");
 		}
 
-#ifdef _WIN32
-		Rect *res = static_cast<Rect *>(_aligned_malloc(16, sizeof(Rect)));
-#else
-		Rect *res = static_cast<Rect *>(aligned_alloc(16, sizeof(Rect)));
-#endif
+		Rect *res = new Rect();
 
 		auto r = *v * n;
 			
@@ -279,11 +228,7 @@ void LuaRuntime::_register_rectangle() {
 			return luaL_error(L, "invalid operands to rectangle multiplication");
 		}
 
-#ifdef _WIN32
-		Rect *res = static_cast<Rect *>(_aligned_malloc(16, sizeof(Rect)));
-#else
-		Rect *res = static_cast<Rect *>(aligned_alloc(16, sizeof(Rect)));
-#endif
+		Rect *res = new Rect();
 
 		auto r = *v / n;
 			

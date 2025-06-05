@@ -1,7 +1,3 @@
-#ifdef AVX2
-#include <immintrin.h>
-#endif
-
 #include <string>
 #include <iostream>
 #include <iomanip>
@@ -12,53 +8,55 @@
 #include <Orbit/lua.h>
 #include <Orbit/vector.h>
 
+#include <xsimd/xsimd.hpp>
+
 extern "C" {
     #include <lua.h>
     #include <lauxlib.h>
     #include <lualib.h>
 }
 
+#define META "vector"
+
 namespace Orbit::Lua {
 
 float Vector::distance(Vector const &v) const {
-#ifdef AVX2
-	__m128 a = _mm_load_ps(this->data);
-	__m128 b = _mm_load_ps(v.data);
+	auto a = xsimd::load_aligned(_data);
+	auto b = xsimd::load_aligned(v._data);
 
-	__m128 diff = _mm_sub_ps(a, b);
-	__m128 squared = _mm_mul_ps(diff, diff);
+	auto diff = xsimd::sub(a, b);
 
-	__m128 shuf = _mm_shuffle_ps(squared, squared, _MM_SHUFFLE(2, 3, 0, 1));
-	__m128 sums = _mm_add_ps(squared, shuf);
+	auto squared_diff = xsimd::mul(diff, diff);
 
-	shuf = _mm_movehl_ps(shuf, sums);
-	sums = _mm_add_ss(sums, shuf);
-
-	return std::sqrt(_mm_cvtss_f32(sums));
-#else
-	return static_cast<float>(std::sqrt(
-			(data[0] + v.data[0]) * (data[0] + v.data[0]) +
-			(data[1] + v.data[1]) * (data[1] + v.data[1]) +
-			(data[2] + v.data[2]) * (data[2] + v.data[2]) +
-			(data[3] + v.data[3]) * (data[3] + v.data[3])
-		));
-#endif
+	return xsimd::reduce_add(squared_diff);
 }
 
 Vector Vector::mix(Vector const &v, float t) const {
- return *this * (1 - t) + v * t;
+	auto a = xsimd::load_aligned(_data);
+	auto b = xsimd::load_aligned(v._data);
+
+	auto simd_t = xsimd::broadcast<float>(t);
+
+	auto diff = xsimd::sub(b, a);
+	auto scaled = xsimd::mul(simd_t, diff);
+	auto res = xsimd::add(a, scaled);
+
+	auto res_vec = Vector();
+	xsimd::store_aligned(res_vec._data, res);
+
+	return res_vec;
 }
 
 void Vector::normalize() {
-	float len_squared = data[0] * data[0] + data[1] * data[1] + data[2] + data[2] + data[3] * data[3];
+	float len_squared = _data[0] * _data[0] + _data[1] * _data[1] + _data[2] + _data[2] + _data[3] * _data[3];
 
 	float len = std::sqrt(len_squared);
 
 	if (len > 0.0f) {
-		data[0] /= len;
-		data[1] /= len;
-		data[2] /= len;
-		data[3] /= len;
+		_data[0] /= len;
+		_data[1] /= len;
+		_data[2] /= len;
+		_data[3] /= len;
 	}
 }
 
@@ -66,109 +64,69 @@ std::string Vector::tostring() const {
 	std::stringstream ss;
 
 		ss 
-			<< "vector(" 
-			<< std::setprecision(4) << data[0] << ", "
-			<< std::setprecision(4) << data[1] << ", "
-			<< std::setprecision(4) << data[2] << ", "
-			<< std::setprecision(4) << data[3] << ")";
+			<< META << '(' 
+			<< std::setprecision(4) << _data[0] << ", "
+			<< std::setprecision(4) << _data[1] << ", "
+			<< std::setprecision(4) << _data[2] << ", "
+			<< std::setprecision(4) << _data[3] << ")";
 
 		return ss.str();
 }
 
 Vector Vector::operator+(Vector const &v) const {
-#ifdef AVX2
-	auto a = _mm_load_ps(this->data);
-	auto b = _mm_load_ps(v.data);
+	auto ba = xsimd::load_aligned(_data);
+	auto bb = xsimd::load_aligned(v._data);
 
-	auto res = _mm_add_ps(a, b);
+	auto res = ba + bb;
 
-	Vector res_vec(0, 0, 0, 0);
-	_mm_store_ps(res_vec.data, res);
-	
+	auto res_vec = Vector();
+
+	res.store_aligned(res_vec._data);
+
 	return res_vec;
-#else
-	return Vector(
-			data[0] + v.data[0],
-			data[1] + v.data[1],
-			data[2] + v.data[2],
-			data[3] + v.data[3]
-		);
-#endif
 }
 
 Vector Vector::operator-(Vector const &v) const {
-#ifdef AVX2
-	auto a = _mm_load_ps(this->data);
-	auto b = _mm_load_ps(v.data);
+	auto ba = xsimd::load_aligned(_data);
+	auto bb = xsimd::load_aligned(v._data);
 
-	auto res = _mm_sub_ps(a, b);
+	auto res = ba - bb;
 
-	Vector res_vec(0, 0, 0, 0);
-	_mm_store_ps(res_vec.data, res);
-	
+	auto res_vec = Vector();
+
+	res.store_aligned(res_vec._data);
+
 	return res_vec;
-#else
-return Vector(
-			data[0] - v.data[0],
-			data[1] - v.data[1],
-			data[2] - v.data[2],
-			data[3] - v.data[3]
-		);
-#endif
 }
 
 Vector Vector::operator*(float f) const {
-#ifdef AVX2
-	auto v = _mm_load_ps(this->data);
-	auto fv = _mm_set1_ps(f);
-	
-	auto res = _mm_mul_ps(v, fv);
+	auto ba = xsimd::load_aligned(_data);
 
-	Vector res_vec(0, 0, 0, 0);
-	_mm_store_ps(res_vec.data, res);
+	auto res = ba * f;
+
+	auto res_vec = Vector();
+
+	res.store_aligned(res_vec._data);
 
 	return res_vec;
-#else
-	return Vector(
-			data[0] * f,
-			data[1] * f,
-			data[2] * f,
-			data[3] * f
-		);
-#endif
 }
 
 Vector Vector::operator/(float f) const {
-#ifdef AVX2
-	auto v = _mm_loadu_ps(this->data);
-	auto fv = _mm_set1_ps(f);
-	
-	auto res = _mm_div_ps(v, fv);
+	auto ba = xsimd::load_aligned(_data);
 
-	Vector res_vec(0, 0, 0, 0);
-	_mm_storeu_ps(res_vec.data, res);
+	auto res = ba / f;
+
+	auto res_vec = Vector();
+
+	res.store_aligned(res_vec._data);
 
 	return res_vec;
-#else
-	return Vector(
-			data[0] / f,
-			data[1] / f,
-			data[2] / f,
-			data[3] / f
-		);
-#endif
 }
 
 Vector &Vector::operator=(Vector const &v) {
 	if (this == &v) return *this;
 
-	#ifdef _WIN32
-		data = static_cast<float *>(_aligned_malloc(16, sizeof(float) * 4));
-	#else
-		data = static_cast<float *>(aligned_alloc(16, sizeof(float) * 4));
-	#endif
-
-	std::memcpy(data, v.data, sizeof(float) * 4);
+	std::memcpy(_data, v._data, sizeof(float) * 4);
 	
 	return *this;
 }
@@ -176,61 +134,32 @@ Vector &Vector::operator=(Vector const &v) {
 Vector &Vector::operator=(Vector &&v) noexcept {
 	if (this == &v) return *this;
 
-	#ifdef _WIN32
-		data = static_cast<float *>(_aligned_malloc(16, sizeof(float) * 4));
-	#else
-		data = static_cast<float *>(aligned_alloc(16, sizeof(float) * 4));
-	#endif
-
-	std::memcpy(data, v.data, sizeof(float) * 4);
-	std::free(v.data);
+	std::memcpy(_data, v._data, sizeof(float) * 4);
+	std::memset(v._data, 0, sizeof(float) * 4);
 	
 	return *this;
 }
 
 Vector::Vector(Vector const &v) {
-	#ifdef _WIN32
-		data = static_cast<float *>(_aligned_malloc(16, sizeof(float) * 4));
-	#else
-		data = static_cast<float *>(aligned_alloc(16, sizeof(float) * 4));
-	#endif
-
-	std::memcpy(data, v.data, sizeof(float) * 4);
+	std::memcpy(_data, v._data, sizeof(float) * 4);
 }
 
 Vector::Vector(Vector &&v) noexcept {
-	#ifdef _WIN32
-		data = static_cast<float *>(_aligned_malloc(16, sizeof(float) * 4));
-	#else
-		data = static_cast<float *>(aligned_alloc(16, sizeof(float) * 4));
-	#endif
-
-	std::memcpy(data, v.data, sizeof(float) * 4);
-	std::free(v.data);
+	std::memcpy(_data, v._data, sizeof(float) * 4);
+	std::memset(v._data, 0, sizeof(float) * 4);
 }
 
 Vector::Vector() {
-	#ifdef _WIN32
-		data = static_cast<float *>(_aligned_malloc(16, sizeof(float) * 4));
-	#else
-		data = static_cast<float *>(aligned_alloc(16, sizeof(float) * 4));
-	#endif
-
-	std::memset(data, 0, sizeof(float) * 4);
+	std::memset(_data, 0, sizeof(float) * 4);
 }
 
 Vector::Vector(float x, float y, float z, float w) {
-	#ifdef _WIN32
-		data = static_cast<float *>(_aligned_malloc(16, sizeof(float) * 4));
-	#else
-		data = static_cast<float *>(aligned_alloc(16, sizeof(float) * 4));
-	#endif
-
-	*data = x;
-	*(data + 1) = y;
-	*(data + 2) = z;
-	*(data + 3) = w;
+	*_data = x;
+	*(_data + 1) = y;
+	*(_data + 2) = z;
+	*(_data + 3) = w;
 }
+
 void LuaRuntime::_register_vector() {
 	const auto make = [](lua_State *L) {
 		float x = luaL_checknumber(L, 1);
@@ -240,70 +169,70 @@ void LuaRuntime::_register_vector() {
 
 		Vector *p = new Vector(x, y, z, w);
 
-		Vector **udata = static_cast<Vector **>(lua_newuserdata(L, sizeof(Vector*)));
-		*udata = p;
+		Vector **u_data = static_cast<Vector **>(lua_newuserdata(L, sizeof(Vector*)));
+		*u_data = p;
 
-		luaL_getmetatable(L, "vector");
+		luaL_getmetatable(L, META);
 		lua_setmetatable(L, -2);
 	
 		return 1;
 	};
 
 	const auto read = [](lua_State *L) {
-		Vector *p = *static_cast<Vector **>(luaL_checkudata(L, 1, "vector"));
+		Vector *p = *static_cast<Vector **>(luaL_checkudata(L, 1, META));
 		const char *field = luaL_checkstring(L, 2);
 
-		if (std::strcmp(field, "x") == 0) lua_pushnumber(L, p->data[0]);
-		else if (std::strcmp(field, "y") == 0) lua_pushnumber(L, p->data[1]);
-		else if (std::strcmp(field, "z") == 0) lua_pushnumber(L, p->data[2]);
-		else if (std::strcmp(field, "w") == 0) lua_pushnumber(L, p->data[3]);
+		if (std::strcmp(field, "x") == 0) lua_pushnumber(L, p->_data[0]);
+		else if (std::strcmp(field, "y") == 0) lua_pushnumber(L, p->_data[1]);
+		else if (std::strcmp(field, "z") == 0) lua_pushnumber(L, p->_data[2]);
+		else if (std::strcmp(field, "w") == 0) lua_pushnumber(L, p->_data[3]);
 		else lua_pushnil(L);
 
 		return 1;
 	};
 
 	const auto write = [](lua_State *L) {
-		Vector *p = *static_cast<Vector **>(luaL_checkudata(L, 1, "vector"));
+		Vector *p = *static_cast<Vector **>(luaL_checkudata(L, 1, META));
 
 		const char *field = luaL_checkstring(L, 2);
 		float value = luaL_checknumber(L, 3);
 
-		if (std::strcmp(field, "x") == 0) p->data[0] = value;
-		else if (std::strcmp(field, "y") == 0) p->data[1] = value;
-		else if (std::strcmp(field, "z") == 0) p->data[2] = value;
-		else if (std::strcmp(field, "w") == 0) p->data[3] = value;
+		if (std::strcmp(field, "x") == 0) p->_data[0] = value;
+		else if (std::strcmp(field, "y") == 0) p->_data[1] = value;
+		else if (std::strcmp(field, "z") == 0) p->_data[2] = value;
+		else if (std::strcmp(field, "w") == 0) p->_data[3] = value;
 		else luaL_error(L, "invalid field '%s' in point", field);
 
 		return 0;
 	};
 
 	const auto add = [](lua_State *L) {
-		Vector a = **static_cast<Vector **>(luaL_checkudata(L, 1, "vector"));
-		Vector b = **static_cast<Vector **>(luaL_checkudata(L, 2, "vector"));
+		Vector a = **static_cast<Vector **>(luaL_checkudata(L, 1, META));
+		Vector b = **static_cast<Vector **>(luaL_checkudata(L, 2, META));
 		
 		Vector *res = new Vector();
 		*res = a + b;
 
-		Vector **udata = static_cast<Vector **>(lua_newuserdata(L, sizeof(Vector*)));
-		*udata = res;
+		Vector **u_data = static_cast<Vector **>(lua_newuserdata(L, sizeof(Vector*)));
+		*u_data = res;
 
-		luaL_getmetatable(L, "vector");
+		luaL_getmetatable(L, META);
 		lua_setmetatable(L, -2);
 
 		return 1;
 	};
 
 	const auto subtract = [](lua_State *L) {
-		Vector a = **static_cast<Vector **>(luaL_checkudata(L, 1, "vector"));
-		Vector b = **static_cast<Vector **>(luaL_checkudata(L, 2, "vector"));
+		Vector a = **static_cast<Vector **>(luaL_checkudata(L, 1, META));
+		Vector b = **static_cast<Vector **>(luaL_checkudata(L, 2, META));
 			
 		Vector *res = new Vector();
 		*res = a - b;
 
-		Vector **udata = static_cast<Vector **>(lua_newuserdata(L, sizeof(Vector*)));
-		*udata = res;
+		Vector **u_data = static_cast<Vector **>(lua_newuserdata(L, sizeof(Vector*)));
+		*u_data = res;
 
-		luaL_getmetatable(L, "vector");
+		luaL_getmetatable(L, META);
 		lua_setmetatable(L, -2);
 
 		return 1;
@@ -313,10 +242,10 @@ void LuaRuntime::_register_vector() {
 		Vector *v = nullptr;
 		float n = 0.0f;
 		
-		if ((v = *static_cast<Vector **>(luaL_testudata(L, 1, "vector"))) != nullptr && lua_isnumber(L, 2)) {
+		if ((v = *static_cast<Vector **>(luaL_testudata(L, 1, META))) != nullptr && lua_isnumber(L, 2)) {
 			n = static_cast<float>(lua_tonumber(L, 2));
 		}
-		else if ((v = *static_cast<Vector **>(luaL_testudata(L, 2, "vector"))) != nullptr && lua_isnumber(L, 1)) {
+		else if ((v = *static_cast<Vector **>(luaL_testudata(L, 2, META))) != nullptr && lua_isnumber(L, 1)) {
 
 			n = static_cast<float>(lua_tonumber(L, 1));
 		}
@@ -330,12 +259,12 @@ void LuaRuntime::_register_vector() {
 			
 		*res = r;
 
-		Vector **udata = static_cast<Vector **>(lua_newuserdata(L, sizeof(Vector*)));
-		*udata = res;
+		Vector **u_data = static_cast<Vector **>(lua_newuserdata(L, sizeof(Vector*)));
+		*u_data = res;
 
 		//*res = (*v) * n;
 
-		luaL_getmetatable(L, "vector");
+		luaL_getmetatable(L, META);
 		lua_setmetatable(L, -2);
 
 		return 1;
@@ -345,10 +274,10 @@ void LuaRuntime::_register_vector() {
 		Vector *v = nullptr;
 		float n = 0.0f;
 		
-		if ((v = *static_cast<Vector **>(luaL_testudata(L, 1, "vector"))) != nullptr && lua_isnumber(L, 2)) {
+		if ((v = *static_cast<Vector **>(luaL_testudata(L, 1, META))) != nullptr && lua_isnumber(L, 2)) {
 			n = static_cast<float>(lua_tonumber(L, 2));
 		}
-		else if ((v = *static_cast<Vector **>(luaL_testudata(L, 2, "vector"))) != nullptr && lua_isnumber(L, 1)) {
+		else if ((v = *static_cast<Vector **>(luaL_testudata(L, 2, META))) != nullptr && lua_isnumber(L, 1)) {
 
 			n = static_cast<float>(lua_tonumber(L, 1));
 		}
@@ -362,19 +291,19 @@ void LuaRuntime::_register_vector() {
 			
 		*res = r;
 
-		Vector **udata = static_cast<Vector **>(lua_newuserdata(L, sizeof(Vector*)));
-		*udata = res;
+		Vector **u_data = static_cast<Vector **>(lua_newuserdata(L, sizeof(Vector*)));
+		*u_data = res;
 
 		//*res = (*v) * n;
 
-		luaL_getmetatable(L, "vector");
+		luaL_getmetatable(L, META);
 		lua_setmetatable(L, -2);
 
 		return 1;
 	};
 	const auto equals = [](lua_State *L) {
-		Vector a = **static_cast<Vector **>(luaL_checkudata(L, 1, "vector"));
-		Vector b = **static_cast<Vector **>(luaL_checkudata(L, 2, "vector"));
+		Vector a = **static_cast<Vector **>(luaL_checkudata(L, 1, META));
+		Vector b = **static_cast<Vector **>(luaL_checkudata(L, 2, META));
 		
 		bool res = a == b;
 
@@ -384,7 +313,7 @@ void LuaRuntime::_register_vector() {
 	};
 
 	const auto tostring = [](lua_State *L) {
-		Vector *v = *static_cast<Vector **>(luaL_checkudata(L, 1, "vector"));
+		Vector *v = *static_cast<Vector **>(luaL_checkudata(L, 1, META));
 		
 		auto str = v->tostring();	
 
@@ -393,7 +322,7 @@ void LuaRuntime::_register_vector() {
 		return 1;
 	};
 
-	luaL_newmetatable(L, "vector");
+	luaL_newmetatable(L, META);
 
 	lua_pushcfunction(L, tostring);
 	lua_setfield(L, -2, "__tostring");
@@ -431,11 +360,11 @@ void LuaRuntime::_register_vector() {
 }
 
 std::ostream &operator<<(std::ostream o, const Vector &v) {
-	return o << "Vector(" 
-		<< std::setprecision(4) << v.data[0] << ',' 
-		<< std::setprecision(4) << v.data[1] << ',' 
-		<< std::setprecision(4) << v.data[2] << ',' 
-		<< std::setprecision(4) << v.data[3] 
+	return o << META << '(' 
+		<< std::setprecision(4) << v._data[0] << ',' 
+		<< std::setprecision(4) << v._data[1] << ',' 
+		<< std::setprecision(4) << v._data[2] << ',' 
+		<< std::setprecision(4) << v._data[3] 
 		<< ')';
 }
 };

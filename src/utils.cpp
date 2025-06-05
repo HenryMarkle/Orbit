@@ -64,19 +64,14 @@ int distance(lua_State *L) {
 int mix_vector(lua_State *L, const Vector *v1, const Vector *v2, float t) {
 	auto res = v1->mix(*v2, t);
 
-#ifdef __WIN32
-		Vector *res_vec = static_cast<Vector *>(_aligned_malloc(16, sizeof(Vector)));
-#else
-		Vector *res_vec = static_cast<Vector *>(aligned_alloc(16, sizeof(Vector)));
-#endif
+	Vector *res_vec = new Vector();
+	*res_vec = res;
 
-		*res_vec = res;
+	Vector **udata = static_cast<Vector **>(lua_newuserdata(L, sizeof(Vector*)));
+	*udata = res_vec;
 
-		Vector **udata = static_cast<Vector **>(lua_newuserdata(L, sizeof(Vector*)));
-		*udata = res_vec;
-
-		luaL_getmetatable(L, "vector");
-		lua_setmetatable(L, -2);
+	luaL_getmetatable(L, "vector");
+	lua_setmetatable(L, -2);
 
 	return 1;
 }
@@ -126,28 +121,24 @@ int make_vector(lua_State *L) {
 	Point *p1 = nullptr;
 	Point *p2 = nullptr;
 
-#ifdef __WIN32
-	Vector *p = static_cast<Vector *>(_aligned_malloc(16, sizeof(Vector)));
-#else
-	Vector *p = static_cast<Vector *>(aligned_alloc(16, sizeof(Vector)));
-#endif
+	Vector *p = new Vector();
 
 	if ((v = static_cast<Vector **>(luaL_testudata(L, 1, "vector"))) != nullptr) {
-		memcpy(p->data, (*v)->data, sizeof(float) * 4);
+		memcpy(p->_data, (*v)->_data, sizeof(float) * 4);
 	} else if (
 			(p1 = static_cast<Point *>(luaL_testudata(L, 1, "point"))) != nullptr &&
 			(p2 = static_cast<Point *>(luaL_testudata(L, 2, "point"))) != nullptr
 		) {
 		
-		p->data[0] = p1->x;
-		p->data[1] = p1->y;
-		p->data[2] = p2->x;
-		p->data[3] = p2->y;
+		p->_data[0] = p1->x;
+		p->_data[1] = p1->y;
+		p->_data[2] = p2->x;
+		p->_data[3] = p2->y;
 	} else {
-		p->data[0] = lua_tonumber(L, 1);
-		p->data[1] = lua_tonumber(L, 2);
-		p->data[2] = lua_tonumber(L, 3);
-		p->data[3] = lua_tonumber(L, 4);
+		p->_data[0] = lua_tonumber(L, 1);
+		p->_data[1] = lua_tonumber(L, 2);
+		p->_data[2] = lua_tonumber(L, 3);
+		p->_data[3] = lua_tonumber(L, 4);
 	}
 
 	Vector **udata = static_cast<Vector **>(lua_newuserdata(L, sizeof(Vector*)));
@@ -183,33 +174,35 @@ int make_rect(lua_State *L) {
 	Point *p1 = nullptr;
 	Point *p2 = nullptr;
 
-#ifdef __WIN32
-	Vector *p = static_cast<Vector *>(_aligned_malloc(16, sizeof(Vector)));
-#else
-	Vector *p = static_cast<Vector *>(aligned_alloc(16, sizeof(Vector)));
-#endif
+	Color *c = nullptr;
+
+	Rect *p = new Rect();
 
 	if ((v = static_cast<Vector **>(luaL_testudata(L, 1, "rect"))) != nullptr) {
-		memcpy(p->data, (*v)->data, sizeof(float) * 4);
+		memcpy(p->_data, (*v)->_data, sizeof(float) * 4);
 	} else if ((v = static_cast<Vector **>(luaL_testudata(L, 1, "vector"))) != nullptr) {
-		memcpy(p->data, (*v)->data, sizeof(float) * 4);
+		memcpy(p->_data, (*v)->_data, sizeof(float) * 4);
 	} else if (
 			(p1 = static_cast<Point *>(luaL_testudata(L, 1, "point"))) != nullptr &&
 			(p2 = static_cast<Point *>(luaL_testudata(L, 2, "point"))) != nullptr
 		) {
-		
-		p->data[0] = p1->x;
-		p->data[1] = p1->y;
-		p->data[2] = p2->x;
-		p->data[3] = p2->y;
+		p->_data[0] = p1->x;
+		p->_data[1] = p1->y;
+		p->_data[2] = p2->x;
+		p->_data[3] = p2->y;
+	} else if ((c = static_cast<Color *>(luaL_testudata(L, 1, "color"))) != nullptr) {
+		p->_data[0] = c->r;
+		p->_data[1] = c->g;
+		p->_data[2] = c->b;
+		p->_data[3] = c->a;
 	} else {
-		p->data[0] = lua_tonumber(L, 1);
-		p->data[1] = lua_tonumber(L, 2);
-		p->data[2] = lua_tonumber(L, 3);
-		p->data[3] = lua_tonumber(L, 4);
+		p->_data[0] = lua_tonumber(L, 1);
+		p->_data[1] = lua_tonumber(L, 2);
+		p->_data[2] = lua_tonumber(L, 3);
+		p->_data[3] = lua_tonumber(L, 4);
 	}
 
-	Vector **udata = static_cast<Vector **>(lua_newuserdata(L, sizeof(Vector*)));
+	Rect **udata = static_cast<Rect **>(lua_newuserdata(L, sizeof(Rect*)));
 	*udata = p;
 
 	luaL_getmetatable(L, "rect");
@@ -417,7 +410,7 @@ int enclose(lua_State *L) {
 			Rect *r = *static_cast<Rect **>(arg1);
 
 			if (c == 0) {
-				std::memcpy(rect.data, r->data, sizeof(float) * 4);
+				std::memcpy(rect._data, r->_data, sizeof(float) * 4);
 				continue;
 			}
 

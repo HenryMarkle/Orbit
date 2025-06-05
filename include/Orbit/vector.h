@@ -5,19 +5,17 @@
 #include <cstring>
 #include <iostream>
 
+#include <xsimd/xsimd.hpp>
+
 namespace Orbit::Lua {
 
-struct Vector {
-	#ifdef AVX2
-	alignas(16) float *data;
-	#else
-	float *data;
-	#endif
+struct alignas(xsimd::default_arch::alignment()) Vector {
+	float _data[4];
 
-	inline float &x() { return data[0]; }
-	inline float &y() { return data[1]; }
-	inline float &z() { return data[2]; }
-	inline float &w() { return data[3]; }
+	inline float &x() { return _data[0]; }
+	inline float &y() { return _data[1]; }
+	inline float &z() { return _data[2]; }
+	inline float &w() { return _data[3]; }
 	
 	float distance(Vector const &) const;
 	Vector mix(Vector const &, float) const;
@@ -26,17 +24,17 @@ struct Vector {
 	
 	inline bool operator==(Vector const &v) const {
 		return 
-			this->data[0] == v.data[0] &&
-			this->data[1] == v.data[1] &&
-			this->data[2] == v.data[2] &&
-			this->data[3] == v.data[3];
+			this->_data[0] == v._data[0] &&
+			this->_data[1] == v._data[1] &&
+			this->_data[2] == v._data[2] &&
+			this->_data[3] == v._data[3];
 	}
 	inline bool operator!=(Vector const &v) const {
 		return 
-			this->data[0] != v.data[0] ||
-			this->data[1] != v.data[1] ||
-			this->data[2] != v.data[2] ||
-			this->data[3] != v.data[3];
+			this->_data[0] != v._data[0] ||
+			this->_data[1] != v._data[1] ||
+			this->_data[2] != v._data[2] ||
+			this->_data[3] != v._data[3];
 	}
 
 	Vector operator+(Vector const &) const;
