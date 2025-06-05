@@ -52,7 +52,7 @@ Rect Rect::operator+(Rect const &v) const {
 			data[0] + v.data[0],
 			data[1] + v.data[1],
 			data[2] + v.data[2],
-			data[3] + v.data[3],
+			data[3] + v.data[3]
 		);
 #endif
 }
@@ -73,7 +73,7 @@ Rect Rect::operator-(Rect const &v) const {
 			data[0] - v.data[0],
 			data[1] - v.data[1],
 			data[2] - v.data[2],
-			data[3] - v.data[3],
+			data[3] - v.data[3]
 		);
 #endif
 }
@@ -94,7 +94,7 @@ Rect Rect::operator*(float f) const {
 			data[0] * f,
 			data[1] * f,
 			data[2] * f,
-			data[3] * f,
+			data[3] * f
 		);
 #endif
 }
@@ -115,7 +115,7 @@ Rect Rect::operator/(float f) const {
 			data[0] / f,
 			data[1] / f,
 			data[2] / f,
-			data[3] / f,
+			data[3] / f
 		);
 #endif
 }
@@ -140,7 +140,7 @@ void LuaRuntime::_register_rectangle() {
 		float z = luaL_checknumber(L, 3);
 		float w = luaL_checknumber(L, 4);
 
-#ifdef __WIN32
+#ifdef _WIN32
 		Rect *p = static_cast<Rect *>(_aligned_malloc(16, sizeof(Rect)));
 #else
 		Rect *p = static_cast<Rect *>(aligned_alloc(16, sizeof(Rect)));
@@ -192,7 +192,7 @@ void LuaRuntime::_register_rectangle() {
 		Rect a = **static_cast<Rect **>(luaL_checkudata(L, 1, META));
 		Rect b = **static_cast<Rect **>(luaL_checkudata(L, 2, META));
 		
-#ifdef __WIN32
+#ifdef _WIN32
 		Rect *res = static_cast<Rect *>(_aligned_malloc(16, sizeof(Rect)));
 #else
 		Rect *res = static_cast<Rect *>(aligned_alloc(16, sizeof(Rect)));
@@ -212,7 +212,7 @@ void LuaRuntime::_register_rectangle() {
 		Rect a = **static_cast<Rect **>(luaL_checkudata(L, 1, META));
 		Rect b = **static_cast<Rect **>(luaL_checkudata(L, 2, META));
 		
-#ifdef __WIN32
+#ifdef _WIN32
 		Rect *res = static_cast<Rect *>(_aligned_malloc(16, sizeof(Rect)));
 #else
 		Rect *res = static_cast<Rect *>(aligned_alloc(16, sizeof(Rect)));
@@ -243,7 +243,7 @@ void LuaRuntime::_register_rectangle() {
 			return luaL_error(L, "invalid operands to rectangle multiplication");
 		}
 
-#ifdef __WIN32
+#ifdef _WIN32
 		Rect *res = static_cast<Rect *>(_aligned_malloc(16, sizeof(Rect)));
 #else
 		Rect *res = static_cast<Rect *>(aligned_alloc(16, sizeof(Rect)));
@@ -279,7 +279,7 @@ void LuaRuntime::_register_rectangle() {
 			return luaL_error(L, "invalid operands to rectangle multiplication");
 		}
 
-#ifdef __WIN32
+#ifdef _WIN32
 		Rect *res = static_cast<Rect *>(_aligned_malloc(16, sizeof(Rect)));
 #else
 		Rect *res = static_cast<Rect *>(aligned_alloc(16, sizeof(Rect)));

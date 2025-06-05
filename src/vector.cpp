@@ -162,7 +162,7 @@ Vector Vector::operator/(float f) const {
 Vector &Vector::operator=(Vector const &v) {
 	if (this == &v) return *this;
 
-	#ifdef __WIN32
+	#ifdef _WIN32
 		data = static_cast<float *>(_aligned_malloc(16, sizeof(float) * 4));
 	#else
 		data = static_cast<float *>(aligned_alloc(16, sizeof(float) * 4));
@@ -176,7 +176,7 @@ Vector &Vector::operator=(Vector const &v) {
 Vector &Vector::operator=(Vector &&v) noexcept {
 	if (this == &v) return *this;
 
-	#ifdef __WIN32
+	#ifdef _WIN32
 		data = static_cast<float *>(_aligned_malloc(16, sizeof(float) * 4));
 	#else
 		data = static_cast<float *>(aligned_alloc(16, sizeof(float) * 4));
@@ -189,7 +189,7 @@ Vector &Vector::operator=(Vector &&v) noexcept {
 }
 
 Vector::Vector(Vector const &v) {
-	#ifdef __WIN32
+	#ifdef _WIN32
 		data = static_cast<float *>(_aligned_malloc(16, sizeof(float) * 4));
 	#else
 		data = static_cast<float *>(aligned_alloc(16, sizeof(float) * 4));
@@ -199,7 +199,7 @@ Vector::Vector(Vector const &v) {
 }
 
 Vector::Vector(Vector &&v) noexcept {
-	#ifdef __WIN32
+	#ifdef _WIN32
 		data = static_cast<float *>(_aligned_malloc(16, sizeof(float) * 4));
 	#else
 		data = static_cast<float *>(aligned_alloc(16, sizeof(float) * 4));
@@ -210,8 +210,8 @@ Vector::Vector(Vector &&v) noexcept {
 }
 
 Vector::Vector() {
-	#ifdef __WIN32
-		data = static_cast<floa *>(_aligned_malloc(16, sizeof(float) * 4));
+	#ifdef _WIN32
+		data = static_cast<float *>(_aligned_malloc(16, sizeof(float) * 4));
 	#else
 		data = static_cast<float *>(aligned_alloc(16, sizeof(float) * 4));
 	#endif
@@ -220,8 +220,8 @@ Vector::Vector() {
 }
 
 Vector::Vector(float x, float y, float z, float w) {
-	#ifdef __WIN32
-		data = static_cast<floa *>(_aligned_malloc(16, sizeof(float) * 4));
+	#ifdef _WIN32
+		data = static_cast<float *>(_aligned_malloc(16, sizeof(float) * 4));
 	#else
 		data = static_cast<float *>(aligned_alloc(16, sizeof(float) * 4));
 	#endif

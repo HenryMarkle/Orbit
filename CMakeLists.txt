@@ -11,12 +11,14 @@ add_subdirectory(libs/lua)
 add_subdirectory(libs/spdlog)
 
 # raylib
-if(WIN32)
-  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libs/raylib_mingw/include)
-  link_directories(${CMAKE_CURRENT_SOURCE_DIR}/libs/raylib_mingw/lib)
-else()
-  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/libs/raylib)
-endif()
+# if(WIN32)
+#   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libs/raylib_mingw/include)
+#   link_directories(${CMAKE_CURRENT_SOURCE_DIR}/libs/raylib_mingw/lib)
+# else()
+#   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/libs/raylib)
+# endif()
+
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/libs/raylib)
 
 file(GLOB MAIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 
@@ -27,17 +29,6 @@ add_executable(
 )
 
 target_include_directories(Orbit PRIVATE include ${CMAKE_CURRENT_SOURCE_DIR}/libs/lua/src)
-
-# Check for AVX2 support
-include(CheckCXXCompilerFlag)
-check_cxx_compiler_flag("-mavx2" COMPILER_SUPPORTS_AVX2)
-if(COMPILER_SUPPORTS_AVX2)
-	target_compile_options(Orbit PRIVATE -mavx2)
-	target_compile_definitions(Orbit PRIVATE AVX2=1)
-else()
-	message(FATAL_ERROR "AVX2 not supported by your compiler")
-	target_compile_definitions(Orbit PRIVATE AVX2=0)
-endif()
 
 if(WIN32)
   target_link_libraries(
