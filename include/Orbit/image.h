@@ -1,5 +1,7 @@
 #pragma once
 
+#include <filesystem>
+
 #include <Orbit/rect.h>
 #include <Orbit/quad.h>
 

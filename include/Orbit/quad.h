@@ -2,32 +2,39 @@
 
 #include <math.h>
 
-#include <Orbit/point.h>
+#include <raylib.h>
 
 namespace Orbit::Lua {
 
-struct Quad {
+struct alignas(32) Quad {
 
-	Point topleft, topright, bottomright, bottomleft;
+	union {
+		struct {
+			Vector2 topleft, topright, bottomright, bottomleft;
+		};
+
+		float data[8];
+	};
+
 
 	bool operator==(const Quad &q) const;	
 	bool operator!=(const Quad &q) const;
 	Quad operator+(const Quad &q) const;
 	Quad operator-(const Quad &q) const;
-	Quad operator+(const Point &p) const;
-	Quad operator-(const Point &p) const;
+	Quad operator+(const Vector2 &p) const;
+	Quad operator-(const Vector2 &p) const;
 	Quad operator*(const int i) const;
 	Quad operator/(const int i) const;
 	Quad operator*(const float i) const;
 	Quad operator/(const float i) const;
-	Point center() const;
-	Quad rotate(float degrees, const Point &center) const; 	
+	Vector2 center() const;
+	Quad rotate(float degrees, const Vector2 &center) const; 	
 	Quad operator>>(float degrees) const;
 
 	std::string tostring() const;
 
-	inline Quad() : topleft(Point()), topright(Point()), bottomright(Point()), bottomleft(Point()) {}
-	inline Quad(Point tl, Point tr, Point br, Point bl) : topleft(tl), topright(tr), bottomright(br), bottomleft(bl) {}
+	inline Quad() : topleft(Vector2{0, 0}), topright(Vector2{0, 0}), bottomright(Vector2{0, 0}), bottomleft(Vector2{0, 0}) {}
+	inline Quad(Vector2 tl, Vector2 tr, Vector2 br, Vector2 bl) : topleft(tl), topright(tr), bottomright(br), bottomleft(bl) {}
 };
 
 };

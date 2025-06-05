@@ -4,6 +4,8 @@
 #include <Orbit/lua.h>
 #include <Orbit/paths.h>
 
+#include <spdlog/spdlog.h>
+
 extern "C" {
     #include <lua.h>
     #include <lauxlib.h>
@@ -51,8 +53,45 @@ void LuaRuntime::load_directory(std::filesystem::path const &dir) {
 	}
 }
 
-LuaRuntime::LuaRuntime(std::shared_ptr<Orbit::Paths> paths) {
-    _paths = paths;
+void LuaRuntime::load_scripts() {
+	load_directory(paths->scripts());
+}
+
+void LuaRuntime::process_frame() {
+	lua_getglobal(L, _entry.c_str());
+
+	if (!lua_isfunction(L, -1)) {
+		lua_pop(L, 1);
+		return;
+	}
+
+	int res = lua_pcall(L, 0, 0, 0);
+
+	if (res != LUA_OK) {
+		std::string err = lua_tostring(L, -1);
+		logger->error(std::string("failed to run entry function '") + _entry + "': " + err);
+		lua_pop(L, 1);
+		throw std::runtime_error(std::string("failed to run entry function '") + _entry + "': " + err);
+	}
+}
+
+void LuaRuntime::draw_frame() {
+	if (_redraw) {
+		// redraw here
+		// ClearBackground(GRAY);
+		DrawTexture(viewport.texture, 0, 0, WHITE);
+		_redraw = false;
+	}
+}
+
+LuaRuntime::LuaRuntime(int width, int height, std::shared_ptr<Orbit::Paths> paths, std::shared_ptr<spdlog::logger> logger, std::shared_ptr<Orbit::Shaders> shaders) : 
+	_width(width), 
+	_height(height),
+	paths(paths),
+	logger(logger),
+	shaders(shaders),
+	_redraw(false),
+	_entry("exitFrame") {
 
 	L =  luaL_newstate();
 	
@@ -61,6 +100,12 @@ LuaRuntime::LuaRuntime(std::shared_ptr<Orbit::Paths> paths) {
 	luaopen_string(L);
 
 	_register_lib();
+
+	viewport = LoadRenderTexture(1400, 800);
+
+	BeginTextureMode(viewport);
+	ClearBackground(WHITE);
+	EndTextureMode();
 }
 
 LuaRuntime::~LuaRuntime() {

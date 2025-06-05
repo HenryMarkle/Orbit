@@ -3,6 +3,7 @@
 #include <string>
 
 #include <Orbit/lua.h>
+#include <Orbit/shaders.h>
 #include <Orbit/paths.h>
 
 #include <spdlog/spdlog.h>
@@ -48,23 +49,35 @@ int main(int, char**) {
 	
 	logger->info("initializing window");
 
+    SetTargetFPS(30);
 	InitWindow(1400, 800, "Orbit Runtime");
 
+    shared_ptr<Orbit::Shaders> shaders = make_shared<Orbit::Shaders>();
 
 	logger->info("initializing runtime");
 
-	auto rt = Orbit::Lua::LuaRuntime(paths);
+	auto rt = Orbit::Lua::LuaRuntime(1400, 800, paths, logger, shaders);
 
 	logger->info("loading scripts");
 
-	rt.load_directory(paths->scripts());
+	rt.load_scripts();
 
-
-
+    BeginDrawing();
+    ClearBackground(GRAY);
+    EndDrawing();
 
 	while (!WindowShouldClose()) {
+        rt.process_frame();
+
 		BeginDrawing();
-		ClearBackground(GRAY);
+		{
+            // rt.draw_frame();
+
+            BeginShaderMode(shaders->flipper.shader);
+            shaders->flipper.prepare(rt.viewport.texture);
+            DrawTexture(rt.viewport.texture, 0, 0, WHITE);
+            EndShaderMode();
+        }
 		EndDrawing();
 	}
 

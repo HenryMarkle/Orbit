@@ -1,16 +1,42 @@
-#include <immintrin.h>
 #include <cstring>
 #include <math.h>
 #include <sstream>
+#include <iostream>
+#include <iomanip>
 
 #include <Orbit/lua.h>
 #include <Orbit/quad.h>
-#include <Orbit/point.h>
+
+#include <xsimd/xsimd.hpp>
+#include <raylib.h>
+#include <raymath.h>
 
 extern "C" {
     #include <lua.h>
     #include <lauxlib.h>
     #include <lualib.h>
+}
+
+inline Vector2 rotate_vector(Vector2 v, float degrees, Vector2 p) {
+	float rad = degrees * PI / 180.0f;
+
+	float sinr = (float)sin(rad);
+	float cosr = (float)cos(rad);
+
+	float dx = v.x - p.x;
+	float dy = v.y - p.y;
+
+	return Vector2{
+		p.x + dx * cosr - dy * sinr,
+		p.y + dx * sinr + dy * cosr
+	};
+}
+
+inline std::ostream &operator<<(std::ostream &out, Vector2 v) {
+	return out << "point(" 
+		<< std::setprecision(4) << v.x << ", "
+		<< std::setprecision(4) << v.y
+		<< ')';
 }
 
 namespace Orbit::Lua {
@@ -31,24 +57,30 @@ bool Quad::operator!=(const Quad &q) const {
 }
 
 Quad Quad::operator+(const Quad &q) const {
-	return Quad(
-			topleft + q.topleft,
-			topright + q.topright,
-			bottomright + q.bottomright,
-			bottomleft + q.bottomleft
-		);
+	using batch_type = xsimd::batch<float>;
+        
+	auto a = batch_type::load_aligned(data);
+	auto b = batch_type::load_aligned(q.data);
+	auto result = a + b;
+	
+	Quad output;
+	result.store_aligned(output.data);
+	return output;
 }
 	
 Quad Quad::operator-(const Quad &q) const {
-		return Quad(
-			topleft - q.topleft,
-			topright - q.topright,
-			bottomright - q.bottomright,
-			bottomleft - q.bottomleft
-		);
+	using batch_type = xsimd::batch<float>;
+        
+	auto a = batch_type::load_aligned(data);
+	auto b = batch_type::load_aligned(q.data);
+	auto result = a - b;
+	
+	Quad output;
+	result.store_aligned(output.data);
+	return output;
 }
 
-Quad Quad::operator+(const Point &p) const {
+Quad Quad::operator+(const Vector2 &p) const {
 		return Quad(
 			topleft + p,
 			topright + p,
@@ -57,7 +89,7 @@ Quad Quad::operator+(const Point &p) const {
 		);
 }
 	
-Quad Quad::operator-(const Point &p) const {
+Quad Quad::operator-(const Vector2 &p) const {
 		return Quad(
 			topleft - p,
 			topright - p,
@@ -67,49 +99,130 @@ Quad Quad::operator-(const Point &p) const {
 }
 
 Quad Quad::operator*(const int i) const {
-		return Quad(
-			topleft * i,
-			topright * i,
-			bottomright * i,
-			bottomleft * i
-		);
+	using batch_type = xsimd::batch<float>;
+	
+	auto a = batch_type::load_aligned(data);
+	auto s = xsimd::broadcast(static_cast<float>(i));
+	auto result = a * s;
+	
+	Quad output;
+	result.store_aligned(output.data);
+	return output;
 }
 
 Quad Quad::operator/(const int i) const {
-		return Quad(
-			topleft / i,
-			topright / i,
-			bottomright / i,
-			bottomleft / i
-		);
+	using batch_type = xsimd::batch<float>;
+	
+	auto a = batch_type::load_aligned(data);
+	auto s = xsimd::broadcast(static_cast<float>(i));
+	auto result = a / s;
+	
+	Quad output;
+	result.store_aligned(output.data);
+	return output;
 }
 
 Quad Quad::operator*(const float i) const {
-		return Quad(
-			topleft * i,
-			topright * i,
-			bottomright * i,
-			bottomleft * i
-		);
+	using batch_type = xsimd::batch<float>;
+	
+	auto a = batch_type::load_aligned(data);
+	auto s = xsimd::broadcast(i);
+	auto result = a * s;
+	
+	Quad output;
+	result.store_aligned(output.data);
+	return output;
 }
 
 Quad Quad::operator/(const float i) const {
-		return Quad(
-			topleft / i,
-			topright / i,
-			bottomright / i,
-			bottomleft / i
-		);
+	using batch_type = xsimd::batch<float>;
+	
+	auto a = batch_type::load_aligned(data);
+	auto s = xsimd::broadcast(i);
+	auto result = a / s;
+	
+	Quad output;
+	result.store_aligned(output.data);
+	return output;
 }
 
-Point Quad::center() const { return (topleft + topright + bottomright + bottomleft) / 4; }
-Quad Quad::rotate(float degrees, const Point &center) const {
-		return Quad(
-				topleft.rotate(degrees, center),
-				topright.rotate(degrees, center),
-				bottomright.rotate(degrees, center),
-				bottomleft.rotate(degrees, center)
-		);
+Vector2 Quad::center() const { return (topleft + topright + bottomright + bottomleft) / 4; }
+Quad Quad::rotate(float degrees, const Vector2 &center) const {
+	#ifdef SIMD
+	float radians = degrees * (PI / 180.0f);
+	float cos_angle = std::cos(radians);
+	float sin_angle = std::sin(radians);
+	
+	using batch_type = xsimd::batch<float>;
+	
+	// Load all coordinates
+	auto coords = batch_type::load_aligned(data);
+	
+	// Create center offsets: [cx, cy, cx, cy, cx, cy, cx, cy]
+	alignas(32) float center_data[8] = {
+		center.x, center.y, center.x, center.y,
+		center.x, center.y, center.x, center.y
+	};
+
+	auto centers = batch_type::load_aligned(center_data);
+	
+	// Translate to origin (subtract center)
+	auto translated = coords - centers;
+	
+	// Separate x and y coordinates for rotation
+	// We need to shuffle: [x1,y1,x2,y2,x3,y3,x4,y4] -> [x1,x2,x3,x4] and [y1,y2,y3,y4]
+	alignas(32) float temp_data[8];
+	translated.store_aligned(temp_data);
+	
+	// Manual extraction of x and y coordinates
+	alignas(32) float x_coords[8] = {
+		temp_data[0], temp_data[2], temp_data[4], temp_data[6],
+		0, 0, 0, 0  // padding for SIMD
+	};
+	alignas(32) float y_coords[8] = {
+		temp_data[1], temp_data[3], temp_data[5], temp_data[7],
+		0, 0, 0, 0  // padding for SIMD
+	};
+	
+	auto x_batch = batch_type::load_aligned(x_coords);
+	auto y_batch = batch_type::load_aligned(y_coords);
+	
+	// Create rotation coefficient batches
+	auto cos_batch = xsimd::broadcast(cos_angle);
+	auto sin_batch = xsimd::broadcast(sin_angle);
+	
+	// Apply rotation: new_x = x*cos - y*sin, new_y = x*sin + y*cos
+	auto new_x = x_batch * cos_batch - y_batch * sin_batch;
+	auto new_y = x_batch * sin_batch + y_batch * cos_batch;
+	
+	// Store back to temp arrays
+	new_x.store_aligned(x_coords);
+	new_y.store_aligned(y_coords);
+	
+	// Recombine x,y pairs and translate back
+	alignas(32) float rotated_data[8] = {
+		x_coords[0] + center.x, y_coords[0] + center.y,  // topleft
+		x_coords[1] + center.x, y_coords[1] + center.y,  // topright
+		x_coords[2] + center.x, y_coords[2] + center.y,  // bottomright
+		x_coords[3] + center.x, y_coords[3] + center.y   // bottomleft
+	};
+	
+	Quad result;
+	auto final_batch = batch_type::load_aligned(rotated_data);
+	final_batch.store_aligned(result.data);
+	
+	return result;
+
+	#else
+	
+	return Quad(
+			rotate_vector(topleft, degrees, center),
+			rotate_vector(topright, degrees, center),
+			rotate_vector(bottomright, degrees, center),
+			rotate_vector(bottomleft, degrees, center)
+	);
+
+	#endif
 }
 Quad Quad::operator>>(float degrees) const { return rotate(degrees, center()); }
 
@@ -132,7 +245,7 @@ void LuaRuntime::_register_quad() {
 		float x = luaL_checknumber(L, 1);
 		float y = luaL_checknumber(L, 2);
 	
-		Point *p = static_cast<Point *>(lua_newuserdata(L, sizeof(Point)));
+		Vector2 *p = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
 
 		p->x = x;
 		p->y = y;
@@ -148,25 +261,25 @@ void LuaRuntime::_register_quad() {
 		const char *field = luaL_checkstring(L, 2);
 
 		if (std::strcmp(field, "topleft") == 0) {
-			Point *p = static_cast<Point *>(lua_newuserdata(L, sizeof(Point)));
+			Vector2 *p = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
 			*p = q->topleft;
 			luaL_getmetatable(L, "point");
 			lua_setmetatable(L, -2);
 		}
 		else if (std::strcmp(field, "topright") == 0) {
-			Point *p = static_cast<Point *>(lua_newuserdata(L, sizeof(Point)));
+			Vector2 *p = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
 			*p = q->topright;
 			luaL_getmetatable(L, "point");
 			lua_setmetatable(L, -2);
 		}
 		else if (std::strcmp(field, "bottomright") == 0) {
-			Point *p = static_cast<Point *>(lua_newuserdata(L, sizeof(Point)));
+			Vector2 *p = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
 			*p = q->bottomright;
 			luaL_getmetatable(L, "point");
 			lua_setmetatable(L, -2);
 		}
 		else if (std::strcmp(field, "bottomleft") == 0) {
-			Point *p = static_cast<Point *>(lua_newuserdata(L, sizeof(Point)));
+			Vector2 *p = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
 			*p = q->bottomleft;
 			luaL_getmetatable(L, "point");
 			lua_setmetatable(L, -2);
@@ -180,7 +293,7 @@ void LuaRuntime::_register_quad() {
 		Quad *q = static_cast<Quad *>(luaL_checkudata(L, 1, "quad"));
 
 		const char *field = luaL_checkstring(L, 2);
-		Point *value = static_cast<Point *>(lua_newuserdata(L, sizeof(Point)));
+		Vector2 *value = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
 
 		
 		if (std::strcmp(field, "topleft") == 0) {

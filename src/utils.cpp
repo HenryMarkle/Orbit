@@ -1,12 +1,14 @@
 #include <cstring>
+#include <iostream>
+#include <iomanip>
 #include <filesystem>
 
 #include <Orbit/lua.h>
 #include <Orbit/vector.h>
-#include <Orbit/point.h>
 #include <Orbit/rect.h>
 #include <Orbit/quad.h>
 
+#include <spdlog/spdlog.h>
 #include <raylib.h>
 
 extern "C" {
@@ -16,11 +18,38 @@ extern "C" {
 }
 
 using Orbit::Lua::Vector;
-using Orbit::Lua::Point;
 using Orbit::Lua::Rect;
 using Orbit::Lua::Quad;
 
-std::string base_path;
+inline Vector2 rotate_vector(Vector2 v, float degrees, const Vector2 &p) {
+	float rad = degrees * PI / 180.0f;
+
+	float sinr = (float)sin(rad);
+	float cosr = (float)cos(rad);
+
+	float dx = v.x - p.x;
+	float dy = v.y - p.y;
+
+	return Vector2{
+		p.x + dx * cosr - dy * sinr,
+		p.y + dx * sinr + dy * cosr
+	};
+}
+
+inline std::ostream &operator<<(std::ostream &out, Vector2 v) {
+	return out << "point(" 
+		<< std::setprecision(4) << v.x << ", "
+		<< std::setprecision(4) << v.y
+		<< ')';
+}
+
+inline Vector2 mix(Vector2 v1, Vector2 v2, float t) {
+	return Vector2{v1.x * (1 - t) + v2.x * t, v1.y * (1 - t) + v2.y};
+}
+
+inline float distance(Vector2 v1, Vector2 v2) {
+	return std::sqrt(abs(v1.x - v2.x) + abs(v1.y - v2.y));
+}
 
 int distance_vector(lua_State *L, const Vector *v1, const Vector *v2) {
 
@@ -30,9 +59,9 @@ int distance_vector(lua_State *L, const Vector *v1, const Vector *v2) {
 	return 1;
 }
 
-int distance_point(lua_State *L, const Point *p1, const Point *p2) {
+int distance_point(lua_State *L, const Vector2 *p1, const Vector2 *p2) {
 
-	auto res = p1->distance(*p2);
+	auto res = distance(*p1, *p2);
 
 	lua_pushnumber(L, res);
 	return 1;
@@ -52,7 +81,7 @@ int distance(lua_State *L) {
 			(p1 = luaL_testudata(L, 1, "point")) != nullptr &&
 			(p2 = luaL_testudata(L, 2, "point")) != nullptr
 	) {
-		return distance_point(L, static_cast<Point *>(p1), static_cast<Point *>(p2));
+		return distance_point(L, static_cast<Vector2 *>(p1), static_cast<Vector2 *>(p2));
 	}
 	else {
 		return luaL_error(L, "invalid parameters");
@@ -76,10 +105,10 @@ int mix_vector(lua_State *L, const Vector *v1, const Vector *v2, float t) {
 	return 1;
 }
 
-int mix_point(lua_State *L, const Point *p1, const Point *p2, float t) {
-	auto res = p1->mix(*p2, t);
+int mix_point(lua_State *L, const Vector2 *p1, const Vector2 *p2, float t) {
+	auto res = mix(*p1, *p2, t);
 
-	Point *p = static_cast<Point *>(lua_newuserdata(L, sizeof(Point)));
+	Vector2 *p = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
 	*p = res;
 
 	luaL_getmetatable(L, "point");
@@ -105,7 +134,7 @@ int mix(lua_State *L) {
 			(p1 = luaL_testudata(L, 1, "point")) != nullptr &&
 			(p2 = luaL_testudata(L, 2, "point")) != nullptr
 	) {
-		return mix_point(L, static_cast<Point *>(p1), static_cast<Point *>(p2), t);
+		return mix_point(L, static_cast<Vector2 *>(p1), static_cast<Vector2 *>(p2), t);
 	}
 	else {
 		return luaL_error(L, "invalid parameters");
@@ -118,16 +147,16 @@ int mix(lua_State *L) {
 int make_vector(lua_State *L) {
 	Vector **v = nullptr;
 
-	Point *p1 = nullptr;
-	Point *p2 = nullptr;
+	Vector2 *p1 = nullptr;
+	Vector2 *p2 = nullptr;
 
 	Vector *p = new Vector();
 
 	if ((v = static_cast<Vector **>(luaL_testudata(L, 1, "vector"))) != nullptr) {
 		memcpy(p->_data, (*v)->_data, sizeof(float) * 4);
 	} else if (
-			(p1 = static_cast<Point *>(luaL_testudata(L, 1, "point"))) != nullptr &&
-			(p2 = static_cast<Point *>(luaL_testudata(L, 2, "point"))) != nullptr
+			(p1 = static_cast<Vector2 *>(luaL_testudata(L, 1, "point"))) != nullptr &&
+			(p2 = static_cast<Vector2 *>(luaL_testudata(L, 2, "point"))) != nullptr
 		) {
 		
 		p->_data[0] = p1->x;
@@ -150,11 +179,11 @@ int make_vector(lua_State *L) {
 	return 1;
 }
 int make_point(lua_State *L) {
-	Point *arg = nullptr;
+	Vector2 *arg = nullptr;
 
-	Point *p = static_cast<Point *>(lua_newuserdata(L, sizeof(Point)));
+	Vector2 *p = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
 	
-	if ((arg = static_cast<Point *>(luaL_testudata(L, 1, "point")))) {
+	if ((arg = static_cast<Vector2 *>(luaL_testudata(L, 1, "point")))) {
 		p->x = arg->x;
 		p->y = arg->y;
 	} else {
@@ -171,8 +200,8 @@ int make_point(lua_State *L) {
 int make_rect(lua_State *L) {
 	Vector **v = nullptr;
 
-	Point *p1 = nullptr;
-	Point *p2 = nullptr;
+	Vector2 *p1 = nullptr;
+	Vector2 *p2 = nullptr;
 
 	Color *c = nullptr;
 
@@ -183,8 +212,8 @@ int make_rect(lua_State *L) {
 	} else if ((v = static_cast<Vector **>(luaL_testudata(L, 1, "vector"))) != nullptr) {
 		memcpy(p->_data, (*v)->_data, sizeof(float) * 4);
 	} else if (
-			(p1 = static_cast<Point *>(luaL_testudata(L, 1, "point"))) != nullptr &&
-			(p2 = static_cast<Point *>(luaL_testudata(L, 2, "point"))) != nullptr
+			(p1 = static_cast<Vector2 *>(luaL_testudata(L, 1, "point"))) != nullptr &&
+			(p2 = static_cast<Vector2 *>(luaL_testudata(L, 2, "point"))) != nullptr
 		) {
 		p->_data[0] = p1->x;
 		p->_data[1] = p1->y;
@@ -286,11 +315,12 @@ void define_constant_colors(lua_State *L) {
 }
 
 
-int rotate_point(lua_State *L, const Point *p, float degrees, const Point *center) {
-	Point c = (center == nullptr) ? Point(0, 0) : *center;
+int rotate_point(lua_State *L, const Vector2 *p, float degrees, const Vector2 *center) {
+	Vector2 c = (center == nullptr) ? Vector2{0, 0} : *center;
 
-	Point *res = static_cast<Point *>(lua_newuserdata(L, sizeof(Point)));
-	*res = p->rotate(degrees, c);
+	Vector2 *res = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
+
+	*res = rotate_vector(*p, degrees, *center);
 
 	luaL_getmetatable(L, "point");
 	lua_setmetatable(L, -2);
@@ -298,7 +328,7 @@ int rotate_point(lua_State *L, const Point *p, float degrees, const Point *cente
 	return 1;
 }
 
-int rotate_quad(lua_State *L, const Quad *q, float degrees, const Point *center) {
+int rotate_quad(lua_State *L, const Quad *q, float degrees, const Vector2 *center) {
 	Quad *nq = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
 	*nq = q->rotate(degrees, (center == nullptr) ? q->center() : *center);
 
@@ -308,12 +338,12 @@ int rotate_quad(lua_State *L, const Quad *q, float degrees, const Point *center)
 	return 1;
 }
 
-int rotate_rect(lua_State *L, const Rect *r, float degrees, const Point *center) {
+int rotate_rect(lua_State *L, const Rect *r, float degrees, const Vector2 *center) {
 	Quad q = Quad(
-				Point(r->left(), r->top()), 
-				Point(r->right(), r->top()), 
-				Point(r->right(), r->bottom()), 
-				Point(r->left(), r->bottom())
+				Vector2{r->left(), r->top()}, 
+				Vector2{r->right(), r->top()}, 
+				Vector2{r->right(), r->bottom()}, 
+				Vector2{r->left(), r->bottom()}
 			);
 
 	Quad *nq = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
@@ -329,13 +359,13 @@ int rotate(lua_State *L) {
 	void *p1 = nullptr;
 
 	float degrees = luaL_checknumber(L, 2);
-	Point *center = static_cast<Point *>(luaL_testudata(L, 3, "point"));
+	Vector2 *center = static_cast<Vector2 *>(luaL_testudata(L, 3, "point"));
 
 	if (
 			(p1 = luaL_testudata(L, 1, "point")) != nullptr
 		) 
 		{
-		return rotate_point(L, static_cast<Point *>(p1), degrees, center);
+		return rotate_point(L, static_cast<Vector2 *>(p1), degrees, center);
 	}
 	else if (
 			(p1 = luaL_testudata(L, 1, "quad")) != nullptr
@@ -370,7 +400,12 @@ int make_quad(lua_State *L) {
 			else if ((p = luaL_checkudata(L, 1, "rectangle")) != nullptr) {
 				Quad *q = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
 				Rect *r = static_cast<Rect *>(p);
-				*q = Quad(Point(r->left(), r->top()), Point(r->right(), r->top()), Point(r->right(), r->bottom()), Point(r->left(), r->bottom()));
+				*q = Quad(
+					Vector2{r->left(), r->top()}, 
+					Vector2{r->right(), r->top()}, 
+					Vector2{r->right(), r->bottom()}, 
+					Vector2{r->left(), r->bottom()}
+				);
 				
 				luaL_getmetatable(L, "quad");
 				lua_setmetatable(L, -2);
@@ -378,10 +413,10 @@ int make_quad(lua_State *L) {
 		} break;
 
 		case 4: {
-			Point *tl = static_cast<Point *>(luaL_checkudata(L, 1, "point"));
-			Point *tr = static_cast<Point *>(luaL_checkudata(L, 2, "point"));
-			Point *br = static_cast<Point *>(luaL_checkudata(L, 3, "point"));
-			Point *bl = static_cast<Point *>(luaL_checkudata(L, 4, "point"));
+			Vector2 *tl = static_cast<Vector2 *>(luaL_checkudata(L, 1, "point"));
+			Vector2 *tr = static_cast<Vector2 *>(luaL_checkudata(L, 2, "point"));
+			Vector2 *br = static_cast<Vector2 *>(luaL_checkudata(L, 3, "point"));
+			Vector2 *bl = static_cast<Vector2 *>(luaL_checkudata(L, 4, "point"));
 				
 			
 			Quad *q = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
@@ -441,7 +476,7 @@ int enclose(lua_State *L) {
 			if (maxy > rect.bottom()) rect.bottom() = maxy;
 		}
 		else if ((arg1 = luaL_testudata(L, c, "point")) != nullptr) {
-			Point *p = static_cast<Point *>(arg1);
+			Vector2 *p = static_cast<Vector2 *>(arg1);
 
 			if (p->x < rect.left()) rect.left() = p->x;
 			if (p->x > rect.right()) rect.right() = p->x;
@@ -465,22 +500,22 @@ int enclose(lua_State *L) {
 int center(lua_State *L) {
 	void *arg = nullptr;
 
-	Point *res = static_cast<Point *>(lua_newuserdata(L, sizeof(Point)));
+	Vector2 *res = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
 
 	if ((arg = luaL_testudata(L, 1, "point")) != nullptr) {
-		Point *p = static_cast<Point *>(arg);
+		Vector2 *p = static_cast<Vector2 *>(arg);
 
 		*res = *p;
 	}
 	else if ((arg = luaL_testudata(L, 1, "rectangle"))) {
 		Rect *r = *static_cast<Rect **>(arg);
 
-		*res = Point((r->left() + r->right()) / 2.0f, (r->top() + r->bottom()) / 2.0f);
+		*res = Vector2{(r->left() + r->right()) / 2.0f, (r->top() + r->bottom()) / 2.0f};
 	}
 	else if ((arg = luaL_testudata(L, 1, "vector"))) {
 		Vector *v = *static_cast<Vector **>(arg);
 
-		*res = Point((v->x() + v->y()) / 2.0f, (v->z() + v->w()) / 2.0f);
+		*res = Vector2{(v->x() + v->y()) / 2.0f, (v->z() + v->w()) / 2.0f};
 	}
 	else if ((arg = luaL_testudata(L, 1, "quad"))) {
 		Quad *q = static_cast<Quad *>(arg);
@@ -504,7 +539,11 @@ int make_image(lua_State *L) {
 			case 1: {
 				if (lua_isstring(L, 1)) {
 					const char *path = luaL_checkstring(L, 1);
-			
+
+					auto* runtime = static_cast<Orbit::Lua::LuaRuntime*>(lua_touserdata(L, lua_upvalueindex(1)));
+					
+					auto base_path = runtime->paths->data().string();
+					
 					std::filesystem::path full = std::filesystem::weakly_canonical(base_path + path);
 
 					if (full.string().rfind(base_path, 0) != 0) {
@@ -562,11 +601,67 @@ int random_gen(lua_State *L) {
 	return 1;
 }
 
+int draw(lua_State *L) {
+	const char *text = luaL_checkstring(L, 1);
+	int x = lua_tonumber(L, 2);
+	int y = lua_tonumber(L, 3);
+	Color *c = static_cast<Color *>(luaL_testudata(L, 4, "color"));
+	int size = lua_tonumber(L, 5);
+
+	auto* runtime = static_cast<Orbit::Lua::LuaRuntime*>(lua_touserdata(L, lua_upvalueindex(1)));
+
+	BeginTextureMode(runtime->viewport);
+	DrawText(text, x, y, size ? 20 : size, *c);
+	EndTextureMode();
+
+	runtime->_set_redraw();
+
+	return 0;
+}
+
+int clear(lua_State *L) {
+	Color *c = nullptr;
+
+	auto* runtime = static_cast<Orbit::Lua::LuaRuntime*>(lua_touserdata(L, lua_upvalueindex(1)));
+
+	BeginTextureMode(runtime->viewport);
+
+	if ((c = static_cast<Color *>(luaL_testudata(L, 1, "point"))) != nullptr) {
+		ClearBackground(*c);
+	} else {
+		ClearBackground(WHITE);
+	}
+
+	EndTextureMode();
+
+	return 0;
+
+}
+
+int log(lua_State *L) {
+	const char *text = luaL_checkstring(L, 1);
+
+	auto* runtime = static_cast<Orbit::Lua::LuaRuntime*>(lua_touserdata(L, lua_upvalueindex(1)));
+
+	runtime->logger->info(std::string("[script]: ") + text);
+
+	return 0;
+}
+
+int mouse_pos(lua_State *L) {
+	Vector2 *mpos = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
+	
+	*mpos = GetMousePosition();
+
+	luaL_getmetatable(L, "point");
+	lua_setmetatable(L, -2);
+
+	return 1;
+}
+
 namespace Orbit::Lua {
 
 void LuaRuntime::_register_utils() {
-	base_path = _paths->data().string();
-
 	lua_pushcfunction(L, distance);
 	lua_setglobal(L, "distance");
 
@@ -605,6 +700,20 @@ void LuaRuntime::_register_utils() {
 
 	lua_pushcfunction(L, random_gen);
 	lua_setglobal(L, "random");
+
+	lua_pushlightuserdata(L, this);
+	lua_pushcclosure(L, draw, 1);
+	lua_setglobal(L, "draw");
+
+	lua_pushcfunction(L, log);
+	lua_setglobal(L, "log");
+
+	lua_pushcfunction(L, mouse_pos);
+	lua_setglobal(L, "mouse_pos");
+
+	lua_pushlightuserdata(L, this);
+	lua_pushcclosure(L, clear, 1);
+	lua_setglobal(L, "clear");
 }
 
 };

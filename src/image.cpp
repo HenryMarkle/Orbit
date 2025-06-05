@@ -1,14 +1,13 @@
-#ifdef AVX2
-#include <immintrin.h>
-#endif
-
 #include <sstream>
 #include <cstring>
 #include <string>
 
+#include <xsimd/xsimd.hpp>
+
 #include <Orbit/image.h>
 #include <Orbit/rect.h>
 #include <Orbit/quad.h>
+#include <Orbit/lua.h>
 
 #include <raylib.h>
 
@@ -27,47 +26,30 @@ Image MakeSilhouette(const Image *src) {
 
 	Image silhouette = ImageCopy(*src);
 
-	Color *pixels = reinterpret_cast<Color *>(silhouette.data);
-
 	const int length = silhouette.width * silhouette.height;
 
-#ifdef AVX2
+	using batch_type = xsimd::batch<uint32_t>;
+	constexpr size_t batch_size = batch_type::size;
 
-	const int stride = 8;
-	const int iters = length / stride;
+	const uint32_t white_pixel = 0xFFFFFFFF;
+    auto white_batch = xsimd::broadcast<uint32_t>(white_pixel);
 
-	const __m256i white = _mm256_set1_epi32(0xFFFFFFFF);
-	const __m256i black = _mm256_set1_epi32(0xFF000000);
+	const uint32_t black_pixel = 0xFF000000;
+    auto black_batch = xsimd::broadcast<uint32_t>(black_pixel);
 
-	for (int i = 0; i < iters; i++) {
-		__m256i pixels_vec = _mm256_loadu_si256(reinterpret_cast<const __m256i *>(&pixels[i * stride]));
-		
-		__m256i is_white = _mm256_cmpeq_epi32(pixels_vec, white);
+	uint32_t *pixel_data = reinterpret_cast<uint32_t *>(silhouette.data);
 
-		__m256i result = _mm256_blendv_epi8(black, white, is_white);
-
-		_mm256_storeu_si256(reinterpret_cast<__m256i *>(&pixels[i * stride]), result);
+	size_t i = 0;
+	for (; i + batch_size <= static_cast<size_t>(length); i += batch_size) {
+		auto pixel_batch = xsimd::load_unaligned(&pixel_data[i]);
+		auto is_white_mask = xsimd::eq(pixel_batch, white_batch);
+		auto res_batch = xsimd::select(is_white_mask, white_batch, black_batch);
+		xsimd::store_unaligned(&pixel_data[i], res_batch);
 	}
 
-	for (int i = iters * stride; i < length; i++) {
-		Color *p = pixels + i;
-
-		if (p->r == 255 && p->g == 255 && p->b == 255 && p->a == 255) continue;
-
-		*p = Color{ 0, 0, 0, 255 };
-	}
-
-#else
-
-	for (int i = 0; i < length; i++) {
-		Color *p = pixels + i;
-
-		if (p->r == 255 && p->g == 255 && p->b == 255 && p->a == 255) continue;
-
-		*p = Color{ 0, 0, 0, 255 };
-	}
-
-#endif	
+	for (; i < static_cast<size_t>(length); ++i) {
+		if (pixel_data[i] != white_pixel) pixel_data[i] = black_pixel;
+    }
 
 	return silhouette;
 }

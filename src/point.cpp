@@ -1,11 +1,13 @@
-#include <immintrin.h>
 #include <iostream>
+#include <sstream>
 #include <iomanip>
 #include <cstring>
 #include <math.h>
 
 #include <Orbit/lua.h>
-#include <Orbit/point.h>
+
+#include <raylib.h>
+#include <raymath.h>
 
 extern "C" {
     #include <lua.h>
@@ -15,58 +17,12 @@ extern "C" {
 
 namespace Orbit::Lua {
 
-Point Point::operator+(Point const &p) const {
-	return Point(this->x + p.x, this->y + p.y);
-}
-
-Point Point::operator-(Point const &p) const {
-	return Point(this->x - p.x, this->y - p.y);
-}
-
-Point Point::operator*(int i) const {
-	return Point(this->x + i, this->y + i);
-}
-
-Point Point::operator/(int i) const {
-	return Point(this->x/i, this->y/i);
-}
-
-Point Point::operator*(float i) const {
-	return Point(this->x + i, this->y + i);
-}
-
-Point Point::operator/(float i) const {
-	return Point(this->x/i, this->y/i);
-}
-
-Point Point::rotate(float degrees, const Point &p) const {
-	float rad = degrees * 3.14f / 180.0f;
-
-	float sinr = (float)sin(rad);
-	float cosr = (float)cos(rad);
-
-	float dx = x - p.x;
-	float dy = y - p.y;
-
-	return Point(
-		p.x + dx * cosr - dy * sinr,
-		p.y + dx * sinr + dy * cosr
-	);
-}
-
-std::ostream &operator<<(std::ostream &o, const Point &p) {
-	return o << "point(" 
-		<< std::setprecision(4) << p.x << ", "
-		<< std::setprecision(4) << p.y
-		<< ')';
-}
-
 void LuaRuntime::_register_point() {
 	const auto make = [](lua_State *L) {
 		float x = luaL_checknumber(L, 1);
 		float y = luaL_checknumber(L, 2);
 	
-		Point *p = static_cast<Point *>(lua_newuserdata(L, sizeof(Point)));
+		Vector2 *p = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
 
 		p->x = x;
 		p->y = y;
@@ -78,7 +34,7 @@ void LuaRuntime::_register_point() {
 	};
 
 	const auto read = [](lua_State *L) {
-		Point *p = static_cast<Point *>(luaL_checkudata(L, 1, "point"));
+		Vector2 *p = static_cast<Vector2 *>(luaL_checkudata(L, 1, "point"));
 		const char *field = luaL_checkstring(L, 2);
 
 		if (std::strcmp(field, "x") == 0) lua_pushnumber(L, p->x);
@@ -89,7 +45,7 @@ void LuaRuntime::_register_point() {
 	};
 
 	const auto write = [](lua_State *L) {
-		Point *p = static_cast<Point *>(luaL_checkudata(L, 1, "point"));
+		Vector2 *p = static_cast<Vector2 *>(luaL_checkudata(L, 1, "point"));
 
 		const char *field = luaL_checkstring(L, 2);
 		float value = luaL_checknumber(L, 3);
@@ -102,11 +58,11 @@ void LuaRuntime::_register_point() {
 	};
 
 	const auto add = [](lua_State *L) {
-		Point a = *static_cast<Point *>(luaL_checkudata(L, 1, "point"));
-		Point b = *static_cast<Point *>(luaL_checkudata(L, 2, "point"));
+		Vector2 a = *static_cast<Vector2 *>(luaL_checkudata(L, 1, "point"));
+		Vector2 b = *static_cast<Vector2 *>(luaL_checkudata(L, 2, "point"));
 		
 
-		Point *res = static_cast<Point *>(lua_newuserdata(L, sizeof(Point)));
+		Vector2 *res = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
 
 		*res = a + b;
 
@@ -117,10 +73,10 @@ void LuaRuntime::_register_point() {
 	};
 
 	const auto subtract = [](lua_State *L) {
-		Point a = *static_cast<Point *>(luaL_checkudata(L, 1, "point"));
-		Point b = *static_cast<Point *>(luaL_checkudata(L, 2, "point"));
+		Vector2 a = *static_cast<Vector2 *>(luaL_checkudata(L, 1, "point"));
+		Vector2 b = *static_cast<Vector2 *>(luaL_checkudata(L, 2, "point"));
 		
-		Point *res = static_cast<Point *>(lua_newuserdata(L, sizeof(Point)));
+		Vector2 *res = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
 		*res = a - b;
 
 		luaL_getmetatable(L, "point");
@@ -130,10 +86,10 @@ void LuaRuntime::_register_point() {
 	};
 
 	const auto multiply = [](lua_State *L) {
-		Point a = *static_cast<Point *>(luaL_checkudata(L, 1, "point"));
+		Vector2 a = *static_cast<Vector2 *>(luaL_checkudata(L, 1, "point"));
 		float b = static_cast<float>(luaL_checknumber(L, 2));
 		
-		Point *res = static_cast<Point *>(lua_newuserdata(L, sizeof(Point)));
+		Vector2 *res = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
 		*res = a * b;
 
 		luaL_getmetatable(L, "point");
@@ -143,10 +99,10 @@ void LuaRuntime::_register_point() {
 	};
 	
 	const auto divide = [](lua_State *L) {
-		Point a = *static_cast<Point *>(luaL_checkudata(L, 1, "point"));
+		Vector2 a = *static_cast<Vector2 *>(luaL_checkudata(L, 1, "point"));
 		float b = static_cast<float>(luaL_checknumber(L, 2));
 		
-		Point *res = static_cast<Point *>(lua_newuserdata(L, sizeof(Point)));
+		Vector2 *res = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
 		*res = a / b;
 
 		luaL_getmetatable(L, "point");
@@ -156,10 +112,10 @@ void LuaRuntime::_register_point() {
 	};
 
 	const auto equals = [](lua_State *L) {
-		Point a = *static_cast<Point *>(luaL_checkudata(L, 1, "point"));
-		Point b = *static_cast<Point *>(luaL_checkudata(L, 2, "point"));
+		Vector2 a = *static_cast<Vector2 *>(luaL_checkudata(L, 1, "point"));
+		Vector2 b = *static_cast<Vector2 *>(luaL_checkudata(L, 2, "point"));
 		
-		bool res = a == b;
+		bool res = a == b; 
 
 		lua_pushboolean(L, res);
 
@@ -167,8 +123,17 @@ void LuaRuntime::_register_point() {
 	};
 
 	const auto tostring = [](lua_State *L) {
-		Point *a = static_cast<Point *>(luaL_checkudata(L, 1, "point"));
-		auto str = a->tostring();
+		Vector2 *a = static_cast<Vector2 *>(luaL_checkudata(L, 1, "point"));
+
+		std::stringstream ss;
+
+		ss 
+			<< "Point("
+			<< std::setprecision(3) << a->x << ", "
+			<< std::setprecision(3) << a->y << ')';
+
+		auto str = ss.str(); 
+
 		lua_pushstring(L, str.c_str());
 		return 1;
 	};

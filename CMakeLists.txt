@@ -9,15 +9,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED YES)
 
 add_subdirectory(libs/lua)
 add_subdirectory(libs/spdlog)
-
-# raylib
-# if(WIN32)
-#   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libs/raylib_mingw/include)
-#   link_directories(${CMAKE_CURRENT_SOURCE_DIR}/libs/raylib_mingw/lib)
-# else()
-#   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/libs/raylib)
-# endif()
-
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/libs/raylib)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/libs/xsimd)
 
@@ -33,6 +24,7 @@ target_include_directories(
   Orbit 
   PRIVATE include 
   ${CMAKE_CURRENT_SOURCE_DIR}/libs/lua/src 
+  ${CMAKE_CURRENT_SOURCE_DIR}/libs/tomlplusplus/include
 )
 
 target_link_libraries(Orbit PRIVATE raylib lua spdlog xsimd)
@@ -42,6 +34,12 @@ target_compile_definitions(
   PRIVATE
   BUILD_TYPE="${CMAKE_BUILD_TYPE}"
 )
+
+if(FEATURE_SIMD)
+  target_compile_definitions(Orbit PRIVATE SIMD=1)
+else()
+  target_compile_definitions(Orbit PRIVATE SIMD=0)
+endif()
 
 # Copy the config file
 file(
