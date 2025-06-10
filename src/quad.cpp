@@ -8,6 +8,9 @@
 #include <Orbit/quad.h>
 
 #include <xsimd/xsimd.hpp>
+#include <xsimd/config/xsimd_config.hpp>
+#include <xsimd/types/xsimd_avx2_register.hpp>
+
 #include <raylib.h>
 #include <raymath.h>
 
@@ -18,10 +21,10 @@ extern "C" {
 }
 
 inline Vector2 rotate_vector(Vector2 v, float degrees, Vector2 p) {
-	float rad = degrees * PI / 180.0f;
+	float rad = fmodf(degrees, 360.0f) * PI / 180.0f;
 
-	float sinr = (float)sin(rad);
-	float cosr = (float)cos(rad);
+	float sinr = sinf(rad);
+	float cosr = cosf(rad);
 
 	float dx = v.x - p.x;
 	float dy = v.y - p.y;
@@ -49,171 +52,244 @@ bool Quad::operator==(const Quad &q) const {
 }
 
 bool Quad::operator!=(const Quad &q) const {
-		return 
-			topleft != q.topleft || 
-			topright != q.topright || 
-			bottomright != q.bottomright || 
-			bottomleft != q.bottomleft;
+	return 
+		topleft != q.topleft || 
+		topright != q.topright || 
+		bottomright != q.bottomright || 
+		bottomleft != q.bottomleft;
 }
 
 Quad Quad::operator+(const Quad &q) const {
 	using batch_type = xsimd::batch<float>;
-        
-	auto a = batch_type::load_aligned(data);
-	auto b = batch_type::load_aligned(q.data);
-	auto result = a + b;
-	
+
+	constexpr std::size_t simd_width = batch_type::size;
+
 	Quad output;
-	result.store_aligned(output.data);
+
+	for (std::size_t i = 0; i < 8; i += simd_width) {
+        batch_type a = batch_type::load_aligned(this->data + i);
+        batch_type b = batch_type::load_aligned(q.data + i);
+        batch_type r = a + b;
+        r.store_aligned(output.data + i);
+    }
+	
 	return output;
 }
 	
 Quad Quad::operator-(const Quad &q) const {
 	using batch_type = xsimd::batch<float>;
         
-	auto a = batch_type::load_aligned(data);
-	auto b = batch_type::load_aligned(q.data);
-	auto result = a - b;
-	
+	constexpr std::size_t simd_width = batch_type::size;
+
 	Quad output;
-	result.store_aligned(output.data);
+
+	for (std::size_t i = 0; i < 8; i += simd_width) {
+        batch_type a = batch_type::load_aligned(this->data + i);
+        batch_type b = batch_type::load_aligned(q.data + i);
+        batch_type r = a - b;
+        r.store_aligned(output.data + i);
+    }
+
 	return output;
 }
 
 Quad Quad::operator+(const Vector2 &p) const {
-		return Quad(
-			topleft + p,
-			topright + p,
-			bottomright + p,
-			bottomleft + p
-		);
+	using batch_type = xsimd::batch<float>;
+        
+	constexpr std::size_t simd_width = batch_type::size;
+
+	alignas(32) float v_broadcast[8];
+    for (std::size_t i = 0; i < 8; i += 2) {
+        v_broadcast[i] = p.x;
+        v_broadcast[i + 1] = p.y;
+    }
+
+	Quad output;
+
+	for (std::size_t i = 0; i < 8; i += simd_width) {
+        batch_type a = batch_type::load_aligned(this->data + i);
+        batch_type b = batch_type::load_aligned(v_broadcast + i);
+        batch_type r = a + b;
+        r.store_aligned(output.data + i);
+    }
+
+	return output;
 }
 	
 Quad Quad::operator-(const Vector2 &p) const {
-		return Quad(
-			topleft - p,
-			topright - p,
-			bottomright - p,
-			bottomleft - p
-		);
+	using batch_type = xsimd::batch<float>;
+        
+	constexpr std::size_t simd_width = batch_type::size;
+
+	alignas(32) float v_broadcast[8];
+    for (std::size_t i = 0; i < 8; i += 2) {
+        v_broadcast[i] = p.x;
+        v_broadcast[i + 1] = p.y;
+    }
+
+	Quad output;
+
+	for (std::size_t i = 0; i < 8; i += simd_width) {
+        batch_type a = batch_type::load_aligned(this->data + i);
+        batch_type b = batch_type::load_aligned(v_broadcast + i);
+        batch_type r = a - b;
+        r.store_aligned(output.data + i);
+    }
+
+	return output;
 }
 
 Quad Quad::operator*(const int i) const {
 	using batch_type = xsimd::batch<float>;
-	
-	auto a = batch_type::load_aligned(data);
-	auto s = xsimd::broadcast(static_cast<float>(i));
-	auto result = a * s;
-	
+
+	constexpr std::size_t simd_width = batch_type::size;
+
+	auto s = batch_type::broadcast(static_cast<float>(i));
+
 	Quad output;
-	result.store_aligned(output.data);
+
+	for (std::size_t i = 0; i < 8; i += simd_width) {
+        batch_type a = batch_type::load_aligned(this->data + i);
+        batch_type r = a * s;
+        r.store_aligned(output.data + i);
+    }
+	
 	return output;
 }
 
 Quad Quad::operator/(const int i) const {
 	using batch_type = xsimd::batch<float>;
-	
-	auto a = batch_type::load_aligned(data);
-	auto s = xsimd::broadcast(static_cast<float>(i));
-	auto result = a / s;
-	
+
+	constexpr std::size_t simd_width = batch_type::size;
+
+	auto s = batch_type::broadcast(static_cast<float>(i));
+
 	Quad output;
-	result.store_aligned(output.data);
+
+	for (std::size_t i = 0; i < 8; i += simd_width) {
+        batch_type a = batch_type::load_aligned(this->data + i);
+        batch_type r = a / s;
+        r.store_aligned(output.data + i);
+    }
+	
 	return output;
 }
 
 Quad Quad::operator*(const float i) const {
 	using batch_type = xsimd::batch<float>;
-	
-	auto a = batch_type::load_aligned(data);
-	auto s = xsimd::broadcast(i);
-	auto result = a * s;
-	
+
+	constexpr std::size_t simd_width = batch_type::size;
+
+	auto s = batch_type::broadcast(i);
+
 	Quad output;
-	result.store_aligned(output.data);
+
+	for (std::size_t i = 0; i < 8; i += simd_width) {
+        batch_type a = batch_type::load_aligned(this->data + i);
+        batch_type r = a * s;
+        r.store_aligned(output.data + i);
+    }
+	
 	return output;
 }
 
 Quad Quad::operator/(const float i) const {
 	using batch_type = xsimd::batch<float>;
-	
-	auto a = batch_type::load_aligned(data);
-	auto s = xsimd::broadcast(i);
-	auto result = a / s;
-	
+
+	constexpr std::size_t simd_width = batch_type::size;
+
+	auto s = batch_type::broadcast(i);
+
 	Quad output;
-	result.store_aligned(output.data);
+
+	for (std::size_t i = 0; i < 8; i += simd_width) {
+        batch_type a = batch_type::load_aligned(this->data + i);
+        batch_type r = a / s;
+        r.store_aligned(output.data + i);
+    }
+	
 	return output;
 }
 
+Quad &Quad::operator=(const Quad &other) {
+	if (this == &other) return *this;
+	std::memcpy(data, other.data, sizeof(float) * 8);
+	return *this;
+}
+
+Quad::Quad(const Quad &other) {
+	std::memcpy(data, other.data, sizeof(float) * 8);
+}
+
 Vector2 Quad::center() const { return (topleft + topright + bottomright + bottomleft) / 4; }
+
 Quad Quad::rotate(float degrees, const Vector2 &center) const {
-	#ifdef SIMD
-	float radians = degrees * (PI / 180.0f);
-	float cos_angle = std::cos(radians);
-	float sin_angle = std::sin(radians);
+	// #ifdef SIMD
+	// float radians = degrees * (PI / 180.0f);
+	// float cos_angle = std::cos(radians);
+	// float sin_angle = std::sin(radians);
 	
-	using batch_type = xsimd::batch<float>;
+	// using batch_type = xsimd::batch<float>;
 	
-	// Load all coordinates
-	auto coords = batch_type::load_aligned(data);
+	// // Load all coordinates
+	// auto coords = batch_type::load_aligned(data);
 	
-	// Create center offsets: [cx, cy, cx, cy, cx, cy, cx, cy]
-	alignas(32) float center_data[8] = {
-		center.x, center.y, center.x, center.y,
-		center.x, center.y, center.x, center.y
-	};
+	// // Create center offsets: [cx, cy, cx, cy, cx, cy, cx, cy]
+	// alignas(32) float center_data[8] = {
+	// 	center.x, center.y, center.x, center.y,
+	// 	center.x, center.y, center.x, center.y
+	// };
 
-	auto centers = batch_type::load_aligned(center_data);
+	// auto centers = batch_type::load_aligned(center_data);
 	
-	// Translate to origin (subtract center)
-	auto translated = coords - centers;
+	// // Translate to origin (subtract center)
+	// auto translated = coords - centers;
 	
-	// Separate x and y coordinates for rotation
-	// We need to shuffle: [x1,y1,x2,y2,x3,y3,x4,y4] -> [x1,x2,x3,x4] and [y1,y2,y3,y4]
-	alignas(32) float temp_data[8];
-	translated.store_aligned(temp_data);
+	// // Separate x and y coordinates for rotation
+	// // We need to shuffle: [x1,y1,x2,y2,x3,y3,x4,y4] -> [x1,x2,x3,x4] and [y1,y2,y3,y4]
+	// alignas(32) float temp_data[8];
+	// translated.store_aligned(temp_data);
 	
-	// Manual extraction of x and y coordinates
-	alignas(32) float x_coords[8] = {
-		temp_data[0], temp_data[2], temp_data[4], temp_data[6],
-		0, 0, 0, 0  // padding for SIMD
-	};
-	alignas(32) float y_coords[8] = {
-		temp_data[1], temp_data[3], temp_data[5], temp_data[7],
-		0, 0, 0, 0  // padding for SIMD
-	};
+	// // Manual extraction of x and y coordinates
+	// alignas(32) float x_coords[8] = {
+	// 	temp_data[0], temp_data[2], temp_data[4], temp_data[6],
+	// 	0, 0, 0, 0  // padding for SIMD
+	// };
+	// alignas(32) float y_coords[8] = {
+	// 	temp_data[1], temp_data[3], temp_data[5], temp_data[7],
+	// 	0, 0, 0, 0  // padding for SIMD
+	// };
 	
-	auto x_batch = batch_type::load_aligned(x_coords);
-	auto y_batch = batch_type::load_aligned(y_coords);
+	// auto x_batch = batch_type::load_aligned(x_coords);
+	// auto y_batch = batch_type::load_aligned(y_coords);
 	
-	// Create rotation coefficient batches
-	auto cos_batch = xsimd::broadcast(cos_angle);
-	auto sin_batch = xsimd::broadcast(sin_angle);
+	// // Create rotation coefficient batches
+	// auto cos_batch = xsimd::broadcast(cos_angle);
+	// auto sin_batch = xsimd::broadcast(sin_angle);
 	
-	// Apply rotation: new_x = x*cos - y*sin, new_y = x*sin + y*cos
-	auto new_x = x_batch * cos_batch - y_batch * sin_batch;
-	auto new_y = x_batch * sin_batch + y_batch * cos_batch;
+	// // Apply rotation: new_x = x*cos - y*sin, new_y = x*sin + y*cos
+	// auto new_x = x_batch * cos_batch - y_batch * sin_batch;
+	// auto new_y = x_batch * sin_batch + y_batch * cos_batch;
 	
-	// Store back to temp arrays
-	new_x.store_aligned(x_coords);
-	new_y.store_aligned(y_coords);
+	// // Store back to temp arrays
+	// new_x.store_aligned(x_coords);
+	// new_y.store_aligned(y_coords);
 	
-	// Recombine x,y pairs and translate back
-	alignas(32) float rotated_data[8] = {
-		x_coords[0] + center.x, y_coords[0] + center.y,  // topleft
-		x_coords[1] + center.x, y_coords[1] + center.y,  // topright
-		x_coords[2] + center.x, y_coords[2] + center.y,  // bottomright
-		x_coords[3] + center.x, y_coords[3] + center.y   // bottomleft
-	};
+	// // Recombine x,y pairs and translate back
+	// alignas(32) float rotated_data[8] = {
+	// 	x_coords[0] + center.x, y_coords[0] + center.y,  // topleft
+	// 	x_coords[1] + center.x, y_coords[1] + center.y,  // topright
+	// 	x_coords[2] + center.x, y_coords[2] + center.y,  // bottomright
+	// 	x_coords[3] + center.x, y_coords[3] + center.y   // bottomleft
+	// };
 	
-	Quad result;
-	auto final_batch = batch_type::load_aligned(rotated_data);
-	final_batch.store_aligned(result.data);
+	// Quad result;
+	// auto final_batch = batch_type::load_aligned(rotated_data);
+	// final_batch.store_aligned(result.data);
 	
-	return result;
+	// return result;
 
-	#else
+	// #else
 	
 	return Quad(
 			rotate_vector(topleft, degrees, center),
@@ -222,21 +298,21 @@ Quad Quad::rotate(float degrees, const Vector2 &center) const {
 			rotate_vector(bottomleft, degrees, center)
 	);
 
-	#endif
+	// #endif
 }
 Quad Quad::operator>>(float degrees) const { return rotate(degrees, center()); }
 
 std::string Quad::tostring() const {
-		std::stringstream ss;
+	std::stringstream ss;
 
-		ss 
-			<< "quad(" 
-			<< topleft << ", " 
-			<< topright << ", "
-			<< bottomright << ", "
-			<< bottomleft << ")";
-	
-		return ss.str();
+	ss 
+		<< "quad(" 
+		<< topleft << ", " 
+		<< topright << ", "
+		<< bottomright << ", "
+		<< bottomleft << ")";
+
+	return ss.str();
 }
 
 
@@ -257,7 +333,7 @@ void LuaRuntime::_register_quad() {
 	};
 
 	const auto read = [](lua_State *L) {
-		Quad *q = static_cast<Quad *>(luaL_checkudata(L, 1, "quad"));
+		Quad *q = *static_cast<Quad **>(luaL_checkudata(L, 1, "quad"));
 		const char *field = luaL_checkstring(L, 2);
 
 		if (std::strcmp(field, "topleft") == 0) {
@@ -290,10 +366,10 @@ void LuaRuntime::_register_quad() {
 	};
 
 	const auto write = [](lua_State *L) {
-		Quad *q = static_cast<Quad *>(luaL_checkudata(L, 1, "quad"));
+		Quad *q = *static_cast<Quad **>(luaL_checkudata(L, 1, "quad"));
 
 		const char *field = luaL_checkstring(L, 2);
-		Vector2 *value = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
+		Vector2 *value = static_cast<Vector2 *>(luaL_checkudata(L, 3, "point"));
 
 		
 		if (std::strcmp(field, "topleft") == 0) {
@@ -314,13 +390,13 @@ void LuaRuntime::_register_quad() {
 	};
 
 	const auto add = [](lua_State *L) {
-		Quad a = *static_cast<Quad *>(luaL_checkudata(L, 1, "quad"));
-		Quad b = *static_cast<Quad *>(luaL_checkudata(L, 2, "quad"));
+		Quad a = **static_cast<Quad **>(luaL_checkudata(L, 1, "quad"));
+		Quad b = **static_cast<Quad **>(luaL_checkudata(L, 2, "quad"));
 		
 
-		Quad *res = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
+		Quad **res = static_cast<Quad **>(lua_newuserdata(L, sizeof(Quad *)));
 
-		*res = a + b;
+		*res = new Quad(a + b);
 
 		luaL_getmetatable(L, "quad");
 		lua_setmetatable(L, -2);
@@ -329,11 +405,11 @@ void LuaRuntime::_register_quad() {
 	};
 
 	const auto subtract = [](lua_State *L) {
-		Quad a = *static_cast<Quad *>(luaL_checkudata(L, 1, "quad"));
-		Quad b = *static_cast<Quad *>(luaL_checkudata(L, 2, "quad"));
+		Quad a = **static_cast<Quad **>(luaL_checkudata(L, 1, "quad"));
+		Quad b = **static_cast<Quad **>(luaL_checkudata(L, 2, "quad"));
 		
-		Quad *res = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
-		*res = a - b;
+		Quad **res = static_cast<Quad **>(lua_newuserdata(L, sizeof(Quad *)));
+		*res = new Quad(a - b);
 
 		luaL_getmetatable(L, "quad");
 		lua_setmetatable(L, -2);
@@ -342,11 +418,11 @@ void LuaRuntime::_register_quad() {
 	};
 
 	const auto multiply = [](lua_State *L) {
-		Quad a = *static_cast<Quad *>(luaL_checkudata(L, 1, "quad"));
+		Quad a = **static_cast<Quad **>(luaL_checkudata(L, 1, "quad"));
 		float b = static_cast<float>(luaL_checknumber(L, 2));
 		
-		Quad *res = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
-		*res = a * b;
+		Quad **res = static_cast<Quad **>(lua_newuserdata(L, sizeof(Quad *)));
+		*res = new Quad(a * b);
 
 		luaL_getmetatable(L, "quad");
 		lua_setmetatable(L, -2);
@@ -355,11 +431,11 @@ void LuaRuntime::_register_quad() {
 	};
 	
 	const auto divide = [](lua_State *L) {
-		Quad a = *static_cast<Quad *>(luaL_checkudata(L, 1, "quad"));
+		Quad a = **static_cast<Quad **>(luaL_checkudata(L, 1, "quad"));
 		float b = static_cast<float>(luaL_checknumber(L, 2));
 		
-		Quad *res = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
-		*res = a / b;
+		Quad **res = static_cast<Quad **>(lua_newuserdata(L, sizeof(Quad *)));
+		*res = new Quad(a / b);
 
 		luaL_getmetatable(L, "quad");
 		lua_setmetatable(L, -2);
@@ -368,8 +444,8 @@ void LuaRuntime::_register_quad() {
 	};
 
 	const auto equals = [](lua_State *L) {
-		Quad a = *static_cast<Quad *>(luaL_checkudata(L, 1, "quad"));
-		Quad b = *static_cast<Quad *>(luaL_checkudata(L, 2, "quad"));
+		Quad a = **static_cast<Quad **>(luaL_checkudata(L, 1, "quad"));
+		Quad b = **static_cast<Quad **>(luaL_checkudata(L, 2, "quad"));
 		
 		bool res = a == b;
 
@@ -379,7 +455,7 @@ void LuaRuntime::_register_quad() {
 	};
 
 	const auto tostring = [](lua_State *L) {
-		Quad *a = static_cast<Quad *>(luaL_checkudata(L, 1, "quad"));
+		Quad *a = *static_cast<Quad **>(luaL_checkudata(L, 1, "quad"));
 		auto str = a->tostring();
 		lua_pushstring(L, str.c_str());
 		return 1;
@@ -410,6 +486,14 @@ void LuaRuntime::_register_quad() {
 
 	lua_pushcfunction(L, equals);
 	lua_setfield(L, -2, "__eq");
+
+	lua_pushcfunction(L, [](lua_State *L) {
+		Quad *ptr = *static_cast<Quad **>(lua_touserdata(L, 1));
+		delete ptr;
+
+		return 0;
+	});
+	lua_setfield(L, -2, "__gc");
 
 	lua_pop(L, 1);
 }

@@ -349,8 +349,8 @@ void LuaRuntime::_register_vector() {
 	lua_setfield(L, -2, "__eq");
 
 	lua_pushcfunction(L, [](lua_State *L){
-		void *ptr = *static_cast<void **>(lua_touserdata(L, 1));
-		free(ptr);
+		Vector *ptr = *static_cast<Vector **>(lua_touserdata(L, 1));
+		delete ptr;
 		return 0;
 	});
 	lua_setfield(L, -2, "__gc");

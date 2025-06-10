@@ -29,6 +29,14 @@ target_include_directories(
 
 target_link_libraries(Orbit PRIVATE raylib lua spdlog xsimd)
 
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # Visual Studio
+    add_compile_options(/arch:AVX2)
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    # GCC or Clang
+    add_compile_options(-mavx2 -mfma)
+endif()
+
 target_compile_definitions(
   Orbit
   PRIVATE

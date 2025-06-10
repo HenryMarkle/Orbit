@@ -1,3 +1,4 @@
+#include <optional>
 #include <sstream>
 #include <cstring>
 #include <string>
@@ -136,6 +137,13 @@ int image_gc(lua_State *L) {
 	UnloadImage(*img);
 	return 0;
 }
+
+namespace Orbit::RlExt {
+
+CopyImageParams::CopyImageParams() : blend(0), color(std::nullopt), ink(CopyImageInk::None), mask(nullptr) {}
+CopyImageParams::CopyImageParams(float blend, std::optional<Color> color, CopyImageInk ink, Image *mask) : blend(blend), color(color), ink(ink), mask(mask) {}
+
+};
 
 namespace Orbit::Lua {
 

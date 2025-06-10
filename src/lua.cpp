@@ -57,6 +57,24 @@ void LuaRuntime::load_scripts() {
 	load_directory(paths->scripts());
 }
 
+void LuaRuntime::init() {
+	lua_getglobal(L, "init");
+
+	if (!lua_isfunction(L, -1)) {
+		lua_pop(L, 1);
+		return;
+	}
+
+	int res = lua_pcall(L, 0, 0, 0);
+
+	if (res != LUA_OK) {
+		std::string err = lua_tostring(L, -1);
+		logger->error(std::string("failed to run init function 'init': ") + err);
+		lua_pop(L, 1);
+		throw std::runtime_error(std::string("failed to run init function 'init':") + err);
+	}
+}
+
 void LuaRuntime::process_frame() {
 	lua_getglobal(L, _entry.c_str());
 

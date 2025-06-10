@@ -7,9 +7,11 @@
 #include <Orbit/vector.h>
 #include <Orbit/rect.h>
 #include <Orbit/quad.h>
+#include <Orbit/image.h>
 
 #include <spdlog/spdlog.h>
 #include <raylib.h>
+#include <rlgl.h>
 
 extern "C" {
     #include <lua.h>
@@ -21,11 +23,189 @@ using Orbit::Lua::Vector;
 using Orbit::Lua::Rect;
 using Orbit::Lua::Quad;
 
-inline Vector2 rotate_vector(Vector2 v, float degrees, const Vector2 &p) {
-	float rad = degrees * PI / 180.0f;
+void draw_texture(const Texture2D *texture, const Quad *quad, Color color) {
+  rlSetTexture(texture->id);
 
-	float sinr = (float)sin(rad);
-	float cosr = (float)cos(rad);
+  rlBegin(RL_QUADS);
+
+  rlColor4ub(color.r, color.g, color.b, color.a);
+
+  bool flipx = quad->topleft.x > quad->topright.x && quad->bottomleft.x > quad->bottomright.x;
+  bool flipy = quad->topleft.y > quad->bottomleft.y && quad->topright.y > quad->bottomright.y;
+  
+
+  int vtrx = flipx ? quad->topleft.x : quad->topright.x;
+  int vtry = flipy ? quad->bottomright.y : quad->topright.y;
+
+  int vtlx = flipx ? quad->topright.x : quad->topleft.x;
+  int vtly = flipy ? quad->bottomleft.y : quad->topleft.y;
+
+  int vblx = flipx ? quad->bottomright.x : quad->bottomleft.x;
+  int vbly = flipy ? quad->topleft.y : quad->bottomleft.y;
+
+  int vbrx = flipx ? quad->bottomleft.x : quad->bottomright.x;
+  int vbry = flipy ? quad->topright.y : quad->bottomright.y;
+
+
+  float ttrx = flipx ? 0 : 1.0f;
+  float ttry = flipy ? 1.0f : 0;
+
+  float ttlx = flipx ? 1.0f : 0;
+  float ttly = flipy ? 1.0f : 0;
+
+  float tblx = flipx ? 1.0f : 0;
+  float tbly = flipy ? 0 : 1.0f;
+
+  float tbrx = flipx ? 0 : 1.0f;
+  float tbry = flipy ? 0 : 1.0f;
+
+
+  // top right
+  rlTexCoord2f(ttrx, ttry);
+  rlVertex2i(vtrx, vtry);
+
+  // top left
+  rlTexCoord2f(ttlx, ttly);
+  rlVertex2i(vtlx, vtly);
+  
+  // bottom left
+  rlTexCoord2f(tblx, tbly);
+  rlVertex2i(vblx, vbly);
+
+  // bottom right
+  rlTexCoord2f(tbrx, tbry);
+  rlVertex2i(vbrx, vbry);
+
+
+  // top right
+  rlTexCoord2f(ttrx, ttry);
+  rlVertex2i(vtrx, vtry);
+
+  rlEnd();
+
+  rlSetTexture(0);
+}
+
+void draw_texture(
+  const Texture2D *texture, 
+  const Rectangle &src, 
+  const Quad *quad, 
+  Color color
+) {
+    rlSetTexture(texture->id);
+
+    rlBegin(RL_QUADS);
+
+    rlColor4ub(color.r, color.g, color.b, color.a);
+
+    bool flipx = quad->topleft.x > quad->topright.x && quad->bottomleft.x > quad->bottomright.x;
+    bool flipy = quad->topleft.y > quad->bottomleft.y && quad->topright.y > quad->bottomright.y;
+    
+
+    int vtrx = flipx ? quad->topleft.x : quad->topright.x;
+    int vtry = flipy ? quad->bottomright.y : quad->topright.y;
+
+    int vtlx = flipx ? quad->topright.x : quad->topleft.x;
+    int vtly = flipy ? quad->bottomleft.y : quad->topleft.y;
+
+    int vblx = flipx ? quad->bottomright.x : quad->bottomleft.x;
+    int vbly = flipy ? quad->topleft.y : quad->bottomleft.y;
+
+    int vbrx = flipx ? quad->bottomleft.x : quad->bottomright.x;
+    int vbry = flipy ? quad->topright.y : quad->bottomright.y;
+
+
+    float topright_vx = (src.x + src.width) / texture->width;
+    float topright_vy = (src.y)             / texture->height;
+
+    float topleft_vx = (src.x) / texture->width;
+    float topleft_vy = (src.y) / texture->height;
+
+    float bottomleft_vx = (src.x)              / texture->width;
+    float bottomleft_vy = (src.y + src.height) / texture->height;
+
+    float bottomright_vx = (src.x + src.width)  / texture->width;
+    float bottomright_vy = (src.y + src.height) / texture->height;
+
+
+    float ttrx = flipx ? topleft_vx     : topright_vx;
+    float ttry = flipy ? bottomright_vy : topright_vy;
+
+    float ttlx = flipx ? topright_vx   : topleft_vx;
+    float ttly = flipy ? bottomleft_vy : topleft_vy;
+
+    float tblx = flipx ? bottomright_vx : bottomleft_vx;
+    float tbly = flipy ? topleft_vy     : bottomleft_vy;
+
+    float tbrx = flipx ? bottomleft_vx : bottomright_vx;
+    float tbry = flipy ? topright_vy   : bottomright_vy;
+
+
+    // top right
+    rlTexCoord2f(ttrx, ttry);
+    rlVertex2i(vtrx, vtry);
+
+    // top left
+    rlTexCoord2f(ttlx, ttly);
+    rlVertex2i(vtlx, vtly);
+    
+    // bottom left
+    rlTexCoord2f(tblx, tbly);
+    rlVertex2i(vblx, vbly);
+
+    // bottom right
+    rlTexCoord2f(tbrx, tbry);
+    rlVertex2i(vbrx, vbry);
+
+
+    // top right
+    rlTexCoord2f(ttrx, ttry);
+    rlVertex2i(vtrx, vtry);
+
+    rlEnd();
+
+    rlSetTexture(0);
+}
+
+inline Orbit::RlExt::CopyImageParams parse_params(lua_State *L, int index) {
+	luaL_checktype(L, index, LUA_TTABLE);
+
+	auto params = Orbit::RlExt::CopyImageParams();	
+	
+	lua_getfield(L, 1, "ink");
+	if (!lua_isnil(L, 1)) {
+		params.ink = static_cast<Orbit::RlExt::CopyImageInk>(luaL_checkinteger(L, -1));
+	}
+	lua_pop(L, 1);
+
+	lua_getfield(L, 1, "blend");
+	if (!lua_isnil(L, 1)) {
+		params.blend = luaL_checkinteger(L, -1);
+	}
+	lua_pop(L, 1);
+
+	lua_getfield(L, 1, "color");
+	if (!lua_isnil(L, 1)) {
+		Color *c = static_cast<Color *>(luaL_checkudata(L, -1, "color"));
+		if (c) params.color = *c;
+	}
+	lua_pop(L, 1);
+	
+	lua_getfield(L, 1, "mask");
+	if (!lua_isnil(L, 1)) {
+		Image *i = static_cast<Image *>(luaL_checkudata(L, -1, "image"));
+		params.mask = i;
+	}
+	lua_pop(L, 1);
+	
+	return params;
+}
+
+inline Vector2 rotate_vector(Vector2 v, float degrees, const Vector2 &p) {
+	float rad = fmodf(degrees, 360.0f) * PI / 180.0f;
+
+	float sinr = sinf(rad);
+	float cosr = cosf(rad);
 
 	float dx = v.x - p.x;
 	float dy = v.y - p.y;
@@ -183,7 +363,7 @@ int make_point(lua_State *L) {
 
 	Vector2 *p = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
 	
-	if ((arg = static_cast<Vector2 *>(luaL_testudata(L, 1, "point")))) {
+	if ((arg = static_cast<Vector2 *>(luaL_testudata(L, 1, "point"))) != nullptr) {
 		p->x = arg->x;
 		p->y = arg->y;
 	} else {
@@ -329,8 +509,9 @@ int rotate_point(lua_State *L, const Vector2 *p, float degrees, const Vector2 *c
 }
 
 int rotate_quad(lua_State *L, const Quad *q, float degrees, const Vector2 *center) {
-	Quad *nq = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
-	*nq = q->rotate(degrees, (center == nullptr) ? q->center() : *center);
+	Quad **nq = static_cast<Quad **>(lua_newuserdata(L, sizeof(Quad *)));
+
+	*nq = new Quad(q->rotate(degrees, (center == nullptr) ? q->center() : *center));
 
 	luaL_getmetatable(L, "quad");
 	lua_setmetatable(L, -2);
@@ -346,8 +527,8 @@ int rotate_rect(lua_State *L, const Rect *r, float degrees, const Vector2 *cente
 				Vector2{r->left(), r->bottom()}
 			);
 
-	Quad *nq = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
-	*nq = q.rotate(degrees, (center == nullptr) ? q.center() : *center);
+	Quad **nq = static_cast<Quad **>(lua_newuserdata(L, sizeof(Quad *)));
+	*nq = new Quad(q.rotate(degrees, (center == nullptr) ? q.center() : *center));
 
 	luaL_getmetatable(L, "quad");
 	lua_setmetatable(L, -2);
@@ -370,7 +551,7 @@ int rotate(lua_State *L) {
 	else if (
 			(p1 = luaL_testudata(L, 1, "quad")) != nullptr
 	) {
-		return rotate_quad(L, static_cast<Quad *>(p1), degrees, center);
+		return rotate_quad(L, *static_cast<Quad **>(p1), degrees, center);
 	}
 	else if (
 			(p1 = luaL_testudata(L, 1, "rect")) != nullptr
@@ -391,21 +572,26 @@ int make_quad(lua_State *L) {
 			void *p = nullptr;
 	
 			if ((p = luaL_checkudata(L, 1, "quad")) != nullptr) {
-				Quad *q = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
-				*q = *static_cast<Quad *>(p);
+				Quad **q = static_cast<Quad **>(lua_newuserdata(L, sizeof(Quad *)));
+
+				*q = new Quad(*static_cast<Quad *>(p));
 			
 				luaL_getmetatable(L, "quad");
 				lua_setmetatable(L, -2);
 			}
 			else if ((p = luaL_checkudata(L, 1, "rectangle")) != nullptr) {
-				Quad *q = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
 				Rect *r = static_cast<Rect *>(p);
-				*q = Quad(
+				
+				auto *nptr = new Quad(
 					Vector2{r->left(), r->top()}, 
 					Vector2{r->right(), r->top()}, 
 					Vector2{r->right(), r->bottom()}, 
 					Vector2{r->left(), r->bottom()}
 				);
+
+				Quad **q = static_cast<Quad **>(lua_newuserdata(L, sizeof(Quad *)));
+
+				*q = nptr;
 				
 				luaL_getmetatable(L, "quad");
 				lua_setmetatable(L, -2);
@@ -418,9 +604,10 @@ int make_quad(lua_State *L) {
 			Vector2 *br = static_cast<Vector2 *>(luaL_checkudata(L, 3, "point"));
 			Vector2 *bl = static_cast<Vector2 *>(luaL_checkudata(L, 4, "point"));
 				
+			Quad *nptr = new Quad(*tl, *tr, *br, *bl);
 			
-			Quad *q = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
-			*q = Quad(*tl, *tr, *br, *bl);	
+			Quad **q = static_cast<Quad **>(lua_newuserdata(L, sizeof(Quad *)));
+			*q = nptr;	
 			
 			luaL_getmetatable(L, "quad");
 			lua_setmetatable(L, -2);
@@ -462,7 +649,7 @@ int enclose(lua_State *L) {
 			if (r->bottom() < rect.top()) rect.top() = r->bottom();
 		}
 		else if ((arg1 = luaL_testudata(L, c, "quad")) != nullptr) {
-			Quad *quad = static_cast<Quad *>(arg1);
+			Quad *quad = *static_cast<Quad **>(arg1);
 
 			float minx = std::min(std::min(quad->topleft.x, quad->topright.x), std::min(quad->bottomleft.x, quad->bottomright.x));
 			float miny = std::min(std::min(quad->topleft.y, quad->topright.y), std::min(quad->bottomleft.y, quad->bottomright.y));
@@ -518,7 +705,7 @@ int center(lua_State *L) {
 		*res = Vector2{(v->x() + v->y()) / 2.0f, (v->z() + v->w()) / 2.0f};
 	}
 	else if ((arg = luaL_testudata(L, 1, "quad"))) {
-		Quad *q = static_cast<Quad *>(arg);
+		Quad *q = *static_cast<Quad **>(arg);
 
 		*res = q->center();
 	}
@@ -542,13 +729,7 @@ int make_image(lua_State *L) {
 
 					auto* runtime = static_cast<Orbit::Lua::LuaRuntime*>(lua_touserdata(L, lua_upvalueindex(1)));
 					
-					auto base_path = runtime->paths->data().string();
-					
-					std::filesystem::path full = std::filesystem::weakly_canonical(base_path + path);
-
-					if (full.string().rfind(base_path, 0) != 0) {
-						return luaL_error(L, "access denied");
-					}
+					auto full = runtime->paths->data() / std::string(path);
 
 					Image *img = static_cast<Image *>(lua_newuserdata(L, sizeof(Image)));
 					*img = LoadImage(full.string().c_str());
@@ -566,9 +747,8 @@ int make_image(lua_State *L) {
 				int width = luaL_checkinteger(L, 1);
 				int height = luaL_checkinteger(L, 2);
 		
-				Image nimg = GenImageColor(width, height, { 255, 255, 255, 255 });
 				Image *img = static_cast<Image *>(lua_newuserdata(L, sizeof(Image)));
-				*img = nimg;
+				*img = GenImageColor(width, height, WHITE);;
 			}
 			break;
 
@@ -577,9 +757,8 @@ int make_image(lua_State *L) {
 				int height = luaL_checkinteger(L, 2);
 				Color *color = static_cast<Color *>(luaL_checkudata(L, 3, "color"));
 
-				Image nimg = GenImageColor(width, height, { color->r, color->g, color->b, color->a });
 				Image *img = static_cast<Image *>(lua_newuserdata(L, sizeof(Image)));
-				*img = nimg;
+				*img = GenImageColor(width, height, *color);;
 			}
 			break;
 		}
@@ -602,19 +781,126 @@ int random_gen(lua_State *L) {
 }
 
 int draw(lua_State *L) {
-	const char *text = luaL_checkstring(L, 1);
-	int x = lua_tonumber(L, 2);
-	int y = lua_tonumber(L, 3);
-	Color *c = static_cast<Color *>(luaL_testudata(L, 4, "color"));
-	int size = lua_tonumber(L, 5);
+	void *ptr = nullptr;
+	const char *text = nullptr;
+	Image *img = nullptr;
 
 	auto* runtime = static_cast<Orbit::Lua::LuaRuntime*>(lua_touserdata(L, lua_upvalueindex(1)));
 
-	BeginTextureMode(runtime->viewport);
-	DrawText(text, x, y, size ? 20 : size, *c);
-	EndTextureMode();
+	if ((text = lua_tostring(L, 1)) != nullptr) {
+		int x = lua_tonumber(L, 2);
+		int y = lua_tonumber(L, 3);
+		Color *c = static_cast<Color *>(luaL_testudata(L, 4, "color"));
+		int size = lua_tonumber(L, 5);
+	
+		BeginTextureMode(runtime->viewport);
+		DrawText(text, x, y, size ? 20 : size, c ? *c : BLACK);
+		EndTextureMode();
+	
+		runtime->_set_redraw();
+	} else if (luaL_testudata(L, 1, "image") != nullptr) {
+		img = static_cast<Image *>(luaL_checkudata(L, 1, "image"));
 
-	runtime->_set_redraw();
+		if (lua_isnumber(L, 2) && lua_isnumber(L, 3)) { 
+			// draw(image, x, y, {opt})
+
+			float x = luaL_checknumber(L, 2);
+			float y = luaL_checknumber(L, 3);
+
+			Orbit::RlExt::CopyImageParams params;
+			if (lua_istable(L, 4)) params = parse_params(L, 4);
+
+			auto t = LoadTextureFromImage(*img);
+
+			BeginTextureMode(runtime->viewport);
+			DrawTexture(t, x, y, WHITE);
+			EndTextureMode();
+
+			UnloadTexture(t);
+		} else if (luaL_testudata(L, 2, "point")) {
+			// draw(image, x, y, {opt})
+
+			Vector2 x = *static_cast<Vector2 *>(luaL_checkudata(L, 2, "point"));
+
+			Orbit::RlExt::CopyImageParams params;
+			if (lua_istable(L, 3)) params = parse_params(L, 3);
+
+			auto t = LoadTextureFromImage(*img);
+
+			BeginTextureMode(runtime->viewport);
+			DrawTextureV(t, x, WHITE);
+			EndTextureMode();
+
+			UnloadTexture(t);
+		} else if (luaL_testudata(L, 2, "rect")) {
+			Rect *src = *static_cast<Rect **>(luaL_checkudata(L, 2, "rect"));
+			
+			if (luaL_testudata(L, 3, "rect")) { 
+				// draw(image, src, dest, {opt})
+
+				Rect *dst = *static_cast<Rect **>(luaL_checkudata(L, 3, "rect"));
+
+				Orbit::RlExt::CopyImageParams params;
+				if (lua_istable(L, 4)) params = parse_params(L, 4);
+
+			} else if (luaL_testudata(L, 3, "quad")) { 
+				// draw(image, src, quad, {opt})
+
+				Quad *dst = *static_cast<Quad **>(luaL_checkudata(L, 3, "quad"));
+
+				Orbit::RlExt::CopyImageParams params;
+				if (lua_istable(L, 4)) params = parse_params(L, 4);
+
+			} else { 
+				// draw(image, dest, {opt})
+
+				Orbit::RlExt::CopyImageParams params;
+				if (lua_istable(L, 3)) params = parse_params(L, 3);
+
+				auto t = LoadTextureFromImage(*img);
+
+				BeginTextureMode(runtime->viewport);
+				DrawTexturePro(
+					t,
+					{0, 0, static_cast<float>(t.width), static_cast<float>(t.height)},
+					{ src->left(), src->top(), src->width(), src->height()},
+					{0, 0},
+					0,
+					WHITE
+				);
+				EndTextureMode();
+
+				UnloadTexture(t);
+			} 
+		} else if (luaL_testudata(L, 2, "quad")) {
+			Quad *dst = *static_cast<Quad **>(luaL_checkudata(L, 2, "quad"));
+
+			Orbit::RlExt::CopyImageParams params;
+			if (lua_istable(L, 3)) params = parse_params(L, 3);
+
+			auto t = LoadTextureFromImage(*img);
+			auto &s = runtime->shaders->invb;
+
+			BeginTextureMode(runtime->viewport);
+			BeginShaderMode(s.shader);
+			s.prepare(t, Rectangle{0, 0, (float)t.width, (float)t.height}, dst->vertices);
+			draw_texture(&t, dst, WHITE);
+			EndShaderMode();
+			EndTextureMode();
+
+			UnloadTexture(t);
+		}
+	} else if (luaL_testudata(L, 1, "point") && luaL_testudata(L, 2, "point")) {
+		Vector2 *v1 = static_cast<Vector2 *>(luaL_checkudata(L, 1, "point"));
+		Vector2 *v2 = static_cast<Vector2 *>(luaL_checkudata(L, 2, "point"));
+		Color *c = static_cast<Color *>(luaL_testudata(L, 3, "color"));
+		float thickness = lua_tonumber(L, 4);
+
+		BeginTextureMode(runtime->viewport);
+		DrawLineEx(*v1, *v2, thickness ? thickness : 1, c ? *c : BLACK);
+		EndTextureMode();
+	}
+
 
 	return 0;
 }
@@ -692,7 +978,8 @@ void LuaRuntime::_register_utils() {
 	lua_pushcfunction(L, make_quad);
 	lua_setglobal(L, "quad");
 
-	lua_pushcfunction(L, make_image);
+	lua_pushlightuserdata(L, this);
+	lua_pushcclosure(L, make_image, 1);
 	lua_setglobal(L, "image");
 
 	lua_pushcfunction(L, random_seed);

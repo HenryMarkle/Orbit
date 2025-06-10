@@ -128,7 +128,7 @@ void LuaRuntime::_register_point() {
 		std::stringstream ss;
 
 		ss 
-			<< "Point("
+			<< "point("
 			<< std::setprecision(3) << a->x << ", "
 			<< std::setprecision(3) << a->y << ')';
 

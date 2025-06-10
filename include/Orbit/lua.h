@@ -50,8 +50,6 @@ public:
 	inline int width() const { return _width; }
 	inline int height() const { return _height; }
 	inline void _set_redraw() { _redraw = true; }
-	inline float mousex() const { return _mousex; }
-	inline float mousey() const { return _mousey; }
 
 	inline void set_entry(const std::string &name) { _entry = name; }
 
@@ -62,6 +60,7 @@ public:
 
 	void load_scripts();
 
+	void init();
 	void process_frame();
 	void draw_frame();
 

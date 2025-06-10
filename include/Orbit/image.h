@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
 
 #include <Orbit/rect.h>
 #include <Orbit/quad.h>
@@ -18,12 +19,12 @@ enum class CopyImageInk {
 struct CopyImageParams {
 
 	float blend;
-	Color color;
+	std::optional<Color> color;
 	CopyImageInk ink;
 	Image *mask;
 
 	CopyImageParams();
-	CopyImageParams(float, Color, CopyImageInk, Image *);
+	CopyImageParams(float, std::optional<Color>, CopyImageInk, Image *);
 
 };
 

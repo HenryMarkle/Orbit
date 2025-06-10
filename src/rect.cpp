@@ -292,8 +292,8 @@ void LuaRuntime::_register_rectangle() {
 	lua_setfield(L, -2, "__eq");
 
 	lua_pushcfunction(L, [](lua_State *L){
-		void *ptr = *static_cast<void **>(lua_touserdata(L, 1));
-		free(ptr);
+		Rect *ptr = *static_cast<Rect **>(lua_touserdata(L, 1));
+		delete ptr;
 		return 0;
 	});
 	lua_setfield(L, -2, "__gc");

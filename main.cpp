@@ -61,10 +61,12 @@ int main(int, char**) {
 	logger->info("loading scripts");
 
 	rt.load_scripts();
-
+    
     BeginDrawing();
     ClearBackground(GRAY);
     EndDrawing();
+    
+    rt.init();
 
 	while (!WindowShouldClose()) {
         rt.process_frame();
