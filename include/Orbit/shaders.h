@@ -204,12 +204,74 @@ struct CopyPixelsShader {
 
 };
 
+struct InvbCopyPixelsShader {
+
+    Shader shader;
+    int texture1_loc, texture2_loc, mask_loc;
+    int texture1_size_loc, texture2_size_loc, mask_size_loc;
+    int use_mask_loc;
+    int use_color_loc;
+    int vflip_loc;
+    int ink_loc;
+    int blend_loc;
+    int vertices_loc;
+    int src_coords_loc;
+
+    inline Shader operator=(const InvbCopyPixelsShader &s) const { return s.shader; }
+    inline void prepare(
+        const Texture2D &t1, 
+        const Texture2D &t2,
+        const Rectangle &src, 
+        const Vector2 q[4],
+        bool color = false,
+        int ink = 0,
+        float blend = 1.0f,
+        bool vflip = false,
+        const Texture2D *mask = nullptr 
+    ) const { 
+        SetShaderValueTexture(shader, texture1_loc, t1);
+        SetShaderValueTexture(shader, texture2_loc, t2);
+        
+        float src_coords[4] = { src.x / t1.width, src.y / t1.height, (src.x + src.width) / t1.width, (src.y + src.height) / t1.height };
+        SetShaderValueV(shader, src_coords_loc, src_coords, SHADER_UNIFORM_FLOAT, 4);
+        SetShaderValueV(shader, vertices_loc, q, SHADER_UNIFORM_VEC2, 4);
+
+        if (mask != nullptr) SetShaderValueTexture(shader, mask_loc, *mask);
+
+        int use_mask = mask != nullptr;
+        int use_color = (int)color;
+        Vector2 t1s = Vector2{(float)t1.width, (float)t1.height};
+        Vector2 t2s = Vector2{(float)t2.width, (float)t2.height};
+        Vector2 ms = mask ? Vector2{(float)mask->width, (float)mask->height} : Vector2{0, 0};
+
+        SetShaderValueV(shader, texture1_size_loc, &t1s, SHADER_UNIFORM_VEC2, 1);
+        SetShaderValueV(shader, texture2_size_loc, &t2s, SHADER_UNIFORM_VEC2, 1);
+        SetShaderValueV(shader, mask_size_loc, &ms, SHADER_UNIFORM_VEC2, 1);
+
+        SetShaderValue(shader, vflip_loc, &vflip, SHADER_UNIFORM_INT);
+        SetShaderValue(shader, use_color_loc, &use_color, SHADER_UNIFORM_INT);
+        SetShaderValue(shader, ink_loc, &ink, SHADER_UNIFORM_INT);
+        SetShaderValue(shader, use_mask_loc, &use_mask, SHADER_UNIFORM_INT);
+        SetShaderValue(shader, blend_loc, &blend, SHADER_UNIFORM_FLOAT);
+    }
+
+    inline InvbCopyPixelsShader &operator=(const InvbCopyPixelsShader &) = delete;
+
+    InvbCopyPixelsShader(const InvbCopyPixelsShader &) = delete;
+    
+    InvbCopyPixelsShader();
+
+    inline ~InvbCopyPixelsShader() { UnloadShader(shader); }
+
+};
+
 struct Shaders {
 
     FlipShader flipper;
     InvbShader invb;
     SilhouetteShader silhouette;
     CopyPixelsShader copy_pixels;
+    InvbCopyPixelsShader invb_copy_pixels;
 
 };
 
