@@ -172,32 +172,32 @@ inline Orbit::RlExt::CopyImageParams parse_params(lua_State *L, int index) {
 
 	auto params = Orbit::RlExt::CopyImageParams();	
 	
-	lua_getfield(L, 1, "ink");
-	if (!lua_isnil(L, 1)) {
-		params.ink = static_cast<Orbit::RlExt::CopyImageInk>(luaL_checkinteger(L, -1));
+	lua_getfield(L, index, "ink");
+	if (!lua_isnil(L, -1)) {
+		params.ink = static_cast<Orbit::RlExt::CopyImageInk>(lua_tointeger(L, -1));
 	}
 	lua_pop(L, 1);
 
-	lua_getfield(L, 1, "blend");
-	if (!lua_isnil(L, 1)) {
-		params.blend = luaL_checkinteger(L, -1);
+	lua_getfield(L, index, "blend");
+	if (!lua_isnil(L, -1)) {
+		params.blend = lua_tonumber(L, -1);
 	}
 	lua_pop(L, 1);
 
-	lua_getfield(L, 1, "color");
-	if (!lua_isnil(L, 1)) {
+	lua_getfield(L, index, "color");
+	if (!lua_isnil(L, -1)) {
 		Color *c = static_cast<Color *>(luaL_checkudata(L, -1, "color"));
 		if (c) params.color = *c;
 	}
 	lua_pop(L, 1);
 	
-	lua_getfield(L, 1, "mask");
-	if (!lua_isnil(L, 1)) {
+	lua_getfield(L, index, "mask");
+	if (!lua_isnil(L, -1)) {
 		Image *i = static_cast<Image *>(luaL_checkudata(L, -1, "image"));
 		params.mask = i;
 	}
 	lua_pop(L, 1);
-	
+
 	return params;
 }
 
@@ -890,6 +890,18 @@ int draw(lua_State *L) {
 
 			UnloadTexture(t);
 		}
+		else {
+			Orbit::RlExt::CopyImageParams params;
+			if (lua_istable(L, 2)) params = parse_params(L, 2);
+
+			auto t = LoadTextureFromImage(*img);
+
+			BeginTextureMode(runtime->viewport);
+			DrawTexture(t, 0, 0, WHITE);
+			EndTextureMode();
+
+			UnloadTexture(t);
+		}
 	} else if (luaL_testudata(L, 1, "point") && luaL_testudata(L, 2, "point")) {
 		Vector2 *v1 = static_cast<Vector2 *>(luaL_checkudata(L, 1, "point"));
 		Vector2 *v2 = static_cast<Vector2 *>(luaL_checkudata(L, 2, "point"));
@@ -906,22 +918,51 @@ int draw(lua_State *L) {
 }
 
 int clear(lua_State *L) {
-	Color *c = nullptr;
+	int count = lua_gettop(L);
 
-	auto* runtime = static_cast<Orbit::Lua::LuaRuntime*>(lua_touserdata(L, lua_upvalueindex(1)));
+	switch (count) {
+		case 0: {
+			Color *c = nullptr;
+		
+			auto* runtime = static_cast<Orbit::Lua::LuaRuntime*>(lua_touserdata(L, lua_upvalueindex(1)));
+		
+			BeginTextureMode(runtime->viewport);
+		
+			if ((c = static_cast<Color *>(luaL_testudata(L, 1, "point"))) != nullptr) {
+				ClearBackground(*c);
+			} else {
+				ClearBackground(WHITE);
+			}
+		
+			EndTextureMode();
+		}
+		break;
 
-	BeginTextureMode(runtime->viewport);
+		case 1: {
+			if (luaL_testudata(L, 1, "color")) {
+				Color *c = static_cast<Color *>(luaL_checkudata(L, 1, "point"));
+			
+				auto* runtime = static_cast<Orbit::Lua::LuaRuntime*>(lua_touserdata(L, lua_upvalueindex(1)));
+			
+				BeginTextureMode(runtime->viewport);
+				ClearBackground(*c);
+				EndTextureMode();
+			} else if (luaL_testudata(L, 1, "image")) {
+				Image *i = static_cast<Image *>(luaL_checkudata(L, 1, "image"));
+				ImageClearBackground(i, WHITE);
+			}
+		}
+		break;
 
-	if ((c = static_cast<Color *>(luaL_testudata(L, 1, "point"))) != nullptr) {
-		ClearBackground(*c);
-	} else {
-		ClearBackground(WHITE);
+		case 2: {
+			Image *i = static_cast<Image *>(luaL_checkudata(L, 1, "image"));
+			Color *c = static_cast<Color *>(luaL_checkudata(L, 1, "point"));
+			ImageClearBackground(i, *c);
+		}
+		break;
 	}
 
-	EndTextureMode();
-
 	return 0;
-
 }
 
 int log(lua_State *L) {
@@ -943,6 +984,167 @@ int mouse_pos(lua_State *L) {
 	lua_setmetatable(L, -2);
 
 	return 1;
+}
+
+int image_make_silhouette(lua_State *L){ 
+	Image *img = static_cast<Image *>(luaL_checkudata(L, 1, "image"));
+	bool invert = lua_toboolean(L, 2);
+	// *nimg = MakeSilhouette(img);
+
+	auto* runtime = static_cast<Orbit::Lua::LuaRuntime*>(lua_touserdata(L, lua_upvalueindex(1)));
+	auto &shadero = runtime->shaders->silhouette;
+	auto t = LoadTextureFromImage(*img);
+	auto canvas = LoadRenderTexture(img->width, img->height);
+	
+	BeginTextureMode(canvas);
+	
+	BeginShaderMode(shadero.shader);
+	shadero.prepare(t, invert, true);
+	DrawTexture(t, 0, 0, WHITE);
+	EndShaderMode();
+
+	EndTextureMode();
+
+	Image *nimg = static_cast<Image *>(lua_newuserdata(L, sizeof(Image)));
+	*nimg = LoadImageFromTexture(canvas.texture);
+
+	UnloadTexture(t);
+	UnloadRenderTexture(canvas);
+
+	luaL_getmetatable(L, "image");
+	lua_setmetatable(L, -2);
+
+	return 1; 
+}
+
+int image_copy_pixels(lua_State *L) {
+	int count = lua_gettop(L);
+
+	Image *src = static_cast<Image *>(luaL_checkudata(L, 1, "image"));
+	Image *dst = static_cast<Image *>(luaL_checkudata(L, 2, "image"));
+
+	auto* runtime = static_cast<Orbit::Lua::LuaRuntime*>(lua_touserdata(L, lua_upvalueindex(1)));
+
+	auto srcT = LoadTextureFromImage(*src);
+	auto dstT = LoadTextureFromImage(*dst);
+	Texture2D *mask = nullptr;
+	auto canvas = LoadRenderTexture(dstT.width, dstT.height);
+
+	// auto &flipper = runtime->shaders->flipper;
+	// flipper.prepare(dstT);
+
+	switch (count) {
+		case 2: {
+			BeginTextureMode(canvas);
+			DrawTexture(dstT, 0, 0, WHITE);
+			DrawTexture(srcT, 0, 0, WHITE);
+			EndTextureMode();
+		} 
+		break;
+
+		case 3: {
+			if (lua_istable(L, 3)) {
+				// copy(src, dst, {opt})
+		
+				Orbit::RlExt::CopyImageParams params;
+				if (lua_istable(L, 3)) params = parse_params(L, 3);
+		
+				if (params.mask) *mask = LoadTextureFromImage(*params.mask);
+		
+				auto &shadero = runtime->shaders->copy_pixels;
+				
+				
+				BeginTextureMode(canvas);
+				DrawTexture(dstT, 0, 0, WHITE);
+				
+				BeginShaderMode(shadero.shader);
+				shadero.prepare(
+					srcT, 
+					dstT, 
+					params.color != std::nullopt, 
+					static_cast<int>(params.ink), 
+					params.blend,
+					false,
+					mask
+				);
+				DrawTexture(srcT, 0, 0, params.color.value_or(WHITE));
+				EndShaderMode();
+				EndTextureMode();
+		
+				return 0;
+			}
+
+
+		}
+		break;
+
+		default: {
+			if (luaL_testudata(L, 3, "rect")) {
+				Rect *srcR = *static_cast<Rect **>(luaL_checkudata(L, 3, "rect"));
+				void *dstPtr = nullptr;
+			
+				if ((dstPtr = luaL_testudata(L, 4, "rect")) != nullptr) {
+					Rect *dstR = *static_cast<Rect **>(luaL_checkudata(L, 4, "rect"));
+
+					Orbit::RlExt::CopyImageParams params;
+					if (lua_istable(L, 5)) params = parse_params(L, 5);
+
+					if (params.mask) *mask = LoadTextureFromImage(*params.mask);
+		
+					auto &shadero = runtime->shaders->copy_pixels;
+					
+					
+					BeginTextureMode(canvas);
+					DrawTexture(dstT, 0, 0, WHITE);
+					
+					BeginShaderMode(shadero.shader);
+					shadero.prepare(
+						srcT, 
+						dstT, 
+						params.color != std::nullopt, 
+						static_cast<int>(params.ink), 
+						params.blend,
+						false,
+						mask
+					);
+					DrawTexturePro(
+						srcT, 
+						Rectangle{srcR->left(), srcR->top(), srcR->width(), srcR->height()}, 
+						Rectangle{dstR->left(), dstR->top(), dstR->width(), dstR->height()},
+						Vector2{0, 0},
+						0, 
+						params.color.value_or(WHITE)
+					);
+					EndShaderMode();
+					EndTextureMode();
+			
+				} else if ((dstPtr = luaL_testudata(L, 4, "quad")) != nullptr) {
+					Quad *dstR = *static_cast<Quad **>(luaL_checkudata(L, 4, "quad"));
+
+					Orbit::RlExt::CopyImageParams params;
+					if (lua_istable(L, 5)) params = parse_params(L, 5);
+					
+				} else if (lua_istable(L, 4)) {
+					// copy(src, dst, rect, {opt})
+			
+					Orbit::RlExt::CopyImageParams params;
+					params = parse_params(L, 4);
+				}
+			}
+		}
+		break;
+	}
+
+	UnloadImage(*dst);
+	*dst = LoadImageFromTexture(canvas.texture);
+	ImageFlipVertical(dst);
+
+	UnloadTexture(srcT);
+	UnloadTexture(dstT);
+	if (mask) UnloadTexture(*mask);
+	UnloadRenderTexture(canvas);
+
+	return 0;
 }
 
 namespace Orbit::Lua {
@@ -1001,6 +1203,14 @@ void LuaRuntime::_register_utils() {
 	lua_pushlightuserdata(L, this);
 	lua_pushcclosure(L, clear, 1);
 	lua_setglobal(L, "clear");
+	
+	lua_pushlightuserdata(L, this);
+	lua_pushcclosure(L, image_make_silhouette, 1);
+	lua_setglobal(L, "silhouette");
+
+	lua_pushlightuserdata(L, this);
+	lua_pushcclosure(L, image_copy_pixels, 1);
+	lua_setglobal(L, "copy");
 }
 
 };
