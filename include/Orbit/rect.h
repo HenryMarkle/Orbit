@@ -8,7 +8,14 @@
 namespace Orbit::Lua {
 
 struct alignas(xsimd::default_arch::alignment()) Rect {
-	float _data[4];
+	union
+	{
+		struct {
+			float _left, _top, _right, _bottom;
+		};
+		
+		float _data[4];
+	};
 
 	inline float &left() { return _data[0]; }
 	inline float &top() { return _data[1]; }

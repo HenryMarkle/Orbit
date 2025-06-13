@@ -5,6 +5,7 @@
 
 #include <Orbit/rect.h>
 #include <Orbit/quad.h>
+#include <Orbit/shaders.h>
 
 #include <raylib.h>
 
@@ -28,13 +29,39 @@ struct CopyImageParams {
 
 };
 
-void CopyImage(const Image *src, Image *dst);
-void CopyImage(const Image *src, Image *dst, const CopyImageParams &params);
+void CopyImage_CPU(
+	const Image *src, 
+	Image *dst, 
+	const Orbit::Lua::Rect *from, 
+	const Orbit::Lua::Rect *to, 
+	const CopyImageParams &params
+);
 
-void CopyImage(const Image *src, Image *dst, const Lua::Rect *from, const Lua::Rect *to);
-void CopyImage(const Image *src, Image *dst, const Lua::Rect *from, const Lua::Rect *to, const CopyImageParams &params);
+void CopyImage_CPU(
+	const Image *src, 
+	Image *dst, 
+	const Orbit::Lua::Rect *from, 
+	const Orbit::Lua::Quad *to, 
+	const CopyImageParams &params
+);
 
-void CopyImage(const Image *src, Image *dst, const Lua::Rect *from, const Lua::Quad *to);
-void CopyImage(const Image *src, Image *dst, const Lua::Rect *from, const Lua::Quad *to, const CopyImageParams &params);
+
+void CopyImage_GPU(
+	const Orbit::CopyPixelsShader *shader, 
+	const Image *src, 
+	Image *dst, 
+	const Orbit::Lua::Rect *from, 
+	const Orbit::Lua::Rect *to, 
+	const CopyImageParams &params
+);
+
+void CopyImage_GPU(
+	const Orbit::CopyPixelsShader *shader, 
+	const Image *src, 
+	Image *dst, 
+	const Orbit::Lua::Rect *from, 
+	const Orbit::Lua::Quad *to, 
+	const CopyImageParams &params
+);
 
 };

@@ -2,11 +2,12 @@
 
 #include <math.h>
 
+#include <xsimd/xsimd.hpp>
 #include <raylib.h>
 
 namespace Orbit::Lua {
 
-struct alignas(32) Quad {
+struct alignas(xsimd::default_arch::alignment()) Quad {
 
 	union {
 		struct {

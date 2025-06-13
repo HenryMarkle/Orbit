@@ -394,12 +394,12 @@ InvbCopyPixelsShader::InvbCopyPixelsShader() {
             vec4 black = vec4(0, 0, 0, 1);
 
             
-            vec2 b = vertex_pos[1]; // top right
-            vec2 a = vertex_pos[0]; // top left
-            vec2 d = vertex_pos[3]; // bottom left
-            vec2 c = vertex_pos[2]; // bottom right
+            vec2 vb = vertex_pos[1]; // top right
+            vec2 va = vertex_pos[0]; // top left
+            vec2 vd = vertex_pos[3]; // bottom left
+            vec2 vc = vertex_pos[2]; // bottom right
 
-            vec2 uv = invbilinear(fragTexCoord, a, b, c, d);
+            vec2 uv = invbilinear(fragTexCoord, va, vb, vc, vd);
 
             uv.x = tex_coord_pos[0] + uv.x*(tex_coord_pos[2] - tex_coord_pos[0]);
             uv.y = tex_coord_pos[1] + uv.y*(tex_coord_pos[3] - tex_coord_pos[1]);

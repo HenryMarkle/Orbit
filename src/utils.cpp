@@ -8,6 +8,7 @@
 #include <Orbit/rect.h>
 #include <Orbit/quad.h>
 #include <Orbit/image.h>
+#include <Orbit/rl.h>
 
 #include <spdlog/spdlog.h>
 #include <raylib.h>
@@ -22,150 +23,6 @@ extern "C" {
 using Orbit::Lua::Vector;
 using Orbit::Lua::Rect;
 using Orbit::Lua::Quad;
-
-void draw_texture(const Texture2D *texture, const Quad *quad, Color color) {
-  rlSetTexture(texture->id);
-
-  rlBegin(RL_QUADS);
-
-  rlColor4ub(color.r, color.g, color.b, color.a);
-
-  bool flipx = quad->topleft.x > quad->topright.x && quad->bottomleft.x > quad->bottomright.x;
-  bool flipy = quad->topleft.y > quad->bottomleft.y && quad->topright.y > quad->bottomright.y;
-  
-
-  int vtrx = flipx ? quad->topleft.x : quad->topright.x;
-  int vtry = flipy ? quad->bottomright.y : quad->topright.y;
-
-  int vtlx = flipx ? quad->topright.x : quad->topleft.x;
-  int vtly = flipy ? quad->bottomleft.y : quad->topleft.y;
-
-  int vblx = flipx ? quad->bottomright.x : quad->bottomleft.x;
-  int vbly = flipy ? quad->topleft.y : quad->bottomleft.y;
-
-  int vbrx = flipx ? quad->bottomleft.x : quad->bottomright.x;
-  int vbry = flipy ? quad->topright.y : quad->bottomright.y;
-
-
-  float ttrx = flipx ? 0 : 1.0f;
-  float ttry = flipy ? 1.0f : 0;
-
-  float ttlx = flipx ? 1.0f : 0;
-  float ttly = flipy ? 1.0f : 0;
-
-  float tblx = flipx ? 1.0f : 0;
-  float tbly = flipy ? 0 : 1.0f;
-
-  float tbrx = flipx ? 0 : 1.0f;
-  float tbry = flipy ? 0 : 1.0f;
-
-
-  // top right
-  rlTexCoord2f(ttrx, ttry);
-  rlVertex2i(vtrx, vtry);
-
-  // top left
-  rlTexCoord2f(ttlx, ttly);
-  rlVertex2i(vtlx, vtly);
-  
-  // bottom left
-  rlTexCoord2f(tblx, tbly);
-  rlVertex2i(vblx, vbly);
-
-  // bottom right
-  rlTexCoord2f(tbrx, tbry);
-  rlVertex2i(vbrx, vbry);
-
-
-  // top right
-  rlTexCoord2f(ttrx, ttry);
-  rlVertex2i(vtrx, vtry);
-
-  rlEnd();
-
-  rlSetTexture(0);
-}
-
-void draw_texture(
-  const Texture2D *texture, 
-  const Rectangle &src, 
-  const Quad *quad, 
-  Color color
-) {
-    rlSetTexture(texture->id);
-
-    rlBegin(RL_QUADS);
-
-    rlColor4ub(color.r, color.g, color.b, color.a);
-
-    bool flipx = quad->topleft.x > quad->topright.x && quad->bottomleft.x > quad->bottomright.x;
-    bool flipy = quad->topleft.y > quad->bottomleft.y && quad->topright.y > quad->bottomright.y;
-    
-
-    int vtrx = flipx ? quad->topleft.x : quad->topright.x;
-    int vtry = flipy ? quad->bottomright.y : quad->topright.y;
-
-    int vtlx = flipx ? quad->topright.x : quad->topleft.x;
-    int vtly = flipy ? quad->bottomleft.y : quad->topleft.y;
-
-    int vblx = flipx ? quad->bottomright.x : quad->bottomleft.x;
-    int vbly = flipy ? quad->topleft.y : quad->bottomleft.y;
-
-    int vbrx = flipx ? quad->bottomleft.x : quad->bottomright.x;
-    int vbry = flipy ? quad->topright.y : quad->bottomright.y;
-
-
-    float topright_vx = (src.x + src.width) / texture->width;
-    float topright_vy = (src.y)             / texture->height;
-
-    float topleft_vx = (src.x) / texture->width;
-    float topleft_vy = (src.y) / texture->height;
-
-    float bottomleft_vx = (src.x)              / texture->width;
-    float bottomleft_vy = (src.y + src.height) / texture->height;
-
-    float bottomright_vx = (src.x + src.width)  / texture->width;
-    float bottomright_vy = (src.y + src.height) / texture->height;
-
-
-    float ttrx = flipx ? topleft_vx     : topright_vx;
-    float ttry = flipy ? bottomright_vy : topright_vy;
-
-    float ttlx = flipx ? topright_vx   : topleft_vx;
-    float ttly = flipy ? bottomleft_vy : topleft_vy;
-
-    float tblx = flipx ? bottomright_vx : bottomleft_vx;
-    float tbly = flipy ? topleft_vy     : bottomleft_vy;
-
-    float tbrx = flipx ? bottomleft_vx : bottomright_vx;
-    float tbry = flipy ? topright_vy   : bottomright_vy;
-
-
-    // top right
-    rlTexCoord2f(ttrx, ttry);
-    rlVertex2i(vtrx, vtry);
-
-    // top left
-    rlTexCoord2f(ttlx, ttly);
-    rlVertex2i(vtlx, vtly);
-    
-    // bottom left
-    rlTexCoord2f(tblx, tbly);
-    rlVertex2i(vblx, vbly);
-
-    // bottom right
-    rlTexCoord2f(tbrx, tbry);
-    rlVertex2i(vbrx, vbry);
-
-
-    // top right
-    rlTexCoord2f(ttrx, ttry);
-    rlVertex2i(vtrx, vtry);
-
-    rlEnd();
-
-    rlSetTexture(0);
-}
 
 inline Orbit::RlExt::CopyImageParams parse_params(lua_State *L, int index) {
 	luaL_checktype(L, index, LUA_TTABLE);
@@ -670,6 +527,14 @@ int enclose(lua_State *L) {
 			if (p->y < rect.top()) rect.top() = p->y;
 			if (p->y > rect.bottom()) rect.bottom() = p->y;
 		}
+		else if ((arg1 = luaL_testudata(L, c, "image")) != nullptr) {
+			Image *i = static_cast<Image *>(arg1);
+
+			rect._data[0] = 0;
+			rect._data[1] = 0;
+			rect._data[2] = i->width;
+			rect._data[3] = i->height;
+		}
 		else {
 			return luaL_error(L, "invalid enclose argument %d", c);
 		}	
@@ -880,11 +745,12 @@ int draw(lua_State *L) {
 
 			auto t = LoadTextureFromImage(*img);
 			auto &s = runtime->shaders->invb;
+			auto srcRect = Rectangle{0, 0, (float)t.width, (float)t.height};
 
 			BeginTextureMode(runtime->viewport);
 			BeginShaderMode(s.shader);
-			s.prepare(t, Rectangle{0, 0, (float)t.width, (float)t.height}, dst->vertices);
-			draw_texture(&t, dst, WHITE);
+			s.prepare(t, srcRect, dst->vertices);
+			Orbit::RlExt::DrawTexture(&t, &srcRect, dst, WHITE);
 			EndShaderMode();
 			EndTextureMode();
 
@@ -986,167 +852,6 @@ int mouse_pos(lua_State *L) {
 	return 1;
 }
 
-int image_make_silhouette(lua_State *L){ 
-	Image *img = static_cast<Image *>(luaL_checkudata(L, 1, "image"));
-	bool invert = lua_toboolean(L, 2);
-	// *nimg = MakeSilhouette(img);
-
-	auto* runtime = static_cast<Orbit::Lua::LuaRuntime*>(lua_touserdata(L, lua_upvalueindex(1)));
-	auto &shadero = runtime->shaders->silhouette;
-	auto t = LoadTextureFromImage(*img);
-	auto canvas = LoadRenderTexture(img->width, img->height);
-	
-	BeginTextureMode(canvas);
-	
-	BeginShaderMode(shadero.shader);
-	shadero.prepare(t, invert, true);
-	DrawTexture(t, 0, 0, WHITE);
-	EndShaderMode();
-
-	EndTextureMode();
-
-	Image *nimg = static_cast<Image *>(lua_newuserdata(L, sizeof(Image)));
-	*nimg = LoadImageFromTexture(canvas.texture);
-
-	UnloadTexture(t);
-	UnloadRenderTexture(canvas);
-
-	luaL_getmetatable(L, "image");
-	lua_setmetatable(L, -2);
-
-	return 1; 
-}
-
-int image_copy_pixels(lua_State *L) {
-	int count = lua_gettop(L);
-
-	Image *src = static_cast<Image *>(luaL_checkudata(L, 1, "image"));
-	Image *dst = static_cast<Image *>(luaL_checkudata(L, 2, "image"));
-
-	auto* runtime = static_cast<Orbit::Lua::LuaRuntime*>(lua_touserdata(L, lua_upvalueindex(1)));
-
-	auto srcT = LoadTextureFromImage(*src);
-	auto dstT = LoadTextureFromImage(*dst);
-	Texture2D *mask = nullptr;
-	auto canvas = LoadRenderTexture(dstT.width, dstT.height);
-
-	// auto &flipper = runtime->shaders->flipper;
-	// flipper.prepare(dstT);
-
-	switch (count) {
-		case 2: {
-			BeginTextureMode(canvas);
-			DrawTexture(dstT, 0, 0, WHITE);
-			DrawTexture(srcT, 0, 0, WHITE);
-			EndTextureMode();
-		} 
-		break;
-
-		case 3: {
-			if (lua_istable(L, 3)) {
-				// copy(src, dst, {opt})
-		
-				Orbit::RlExt::CopyImageParams params;
-				if (lua_istable(L, 3)) params = parse_params(L, 3);
-		
-				if (params.mask) *mask = LoadTextureFromImage(*params.mask);
-		
-				auto &shadero = runtime->shaders->copy_pixels;
-				
-				
-				BeginTextureMode(canvas);
-				DrawTexture(dstT, 0, 0, WHITE);
-				
-				BeginShaderMode(shadero.shader);
-				shadero.prepare(
-					srcT, 
-					dstT, 
-					params.color != std::nullopt, 
-					static_cast<int>(params.ink), 
-					params.blend,
-					false,
-					mask
-				);
-				DrawTexture(srcT, 0, 0, params.color.value_or(WHITE));
-				EndShaderMode();
-				EndTextureMode();
-		
-				return 0;
-			}
-
-
-		}
-		break;
-
-		default: {
-			if (luaL_testudata(L, 3, "rect")) {
-				Rect *srcR = *static_cast<Rect **>(luaL_checkudata(L, 3, "rect"));
-				void *dstPtr = nullptr;
-			
-				if ((dstPtr = luaL_testudata(L, 4, "rect")) != nullptr) {
-					Rect *dstR = *static_cast<Rect **>(luaL_checkudata(L, 4, "rect"));
-
-					Orbit::RlExt::CopyImageParams params;
-					if (lua_istable(L, 5)) params = parse_params(L, 5);
-
-					if (params.mask) *mask = LoadTextureFromImage(*params.mask);
-		
-					auto &shadero = runtime->shaders->copy_pixels;
-					
-					
-					BeginTextureMode(canvas);
-					DrawTexture(dstT, 0, 0, WHITE);
-					
-					BeginShaderMode(shadero.shader);
-					shadero.prepare(
-						srcT, 
-						dstT, 
-						params.color != std::nullopt, 
-						static_cast<int>(params.ink), 
-						params.blend,
-						false,
-						mask
-					);
-					DrawTexturePro(
-						srcT, 
-						Rectangle{srcR->left(), srcR->top(), srcR->width(), srcR->height()}, 
-						Rectangle{dstR->left(), dstR->top(), dstR->width(), dstR->height()},
-						Vector2{0, 0},
-						0, 
-						params.color.value_or(WHITE)
-					);
-					EndShaderMode();
-					EndTextureMode();
-			
-				} else if ((dstPtr = luaL_testudata(L, 4, "quad")) != nullptr) {
-					Quad *dstR = *static_cast<Quad **>(luaL_checkudata(L, 4, "quad"));
-
-					Orbit::RlExt::CopyImageParams params;
-					if (lua_istable(L, 5)) params = parse_params(L, 5);
-					
-				} else if (lua_istable(L, 4)) {
-					// copy(src, dst, rect, {opt})
-			
-					Orbit::RlExt::CopyImageParams params;
-					params = parse_params(L, 4);
-				}
-			}
-		}
-		break;
-	}
-
-	UnloadImage(*dst);
-	*dst = LoadImageFromTexture(canvas.texture);
-	ImageFlipVertical(dst);
-
-	UnloadTexture(srcT);
-	UnloadTexture(dstT);
-	if (mask) UnloadTexture(*mask);
-	UnloadRenderTexture(canvas);
-
-	return 0;
-}
-
 namespace Orbit::Lua {
 
 void LuaRuntime::_register_utils() {
@@ -1204,13 +909,6 @@ void LuaRuntime::_register_utils() {
 	lua_pushcclosure(L, clear, 1);
 	lua_setglobal(L, "clear");
 	
-	lua_pushlightuserdata(L, this);
-	lua_pushcclosure(L, image_make_silhouette, 1);
-	lua_setglobal(L, "silhouette");
-
-	lua_pushlightuserdata(L, this);
-	lua_pushcclosure(L, image_copy_pixels, 1);
-	lua_setglobal(L, "copy");
 }
 
 };

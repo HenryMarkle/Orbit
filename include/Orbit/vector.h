@@ -10,7 +10,13 @@
 namespace Orbit::Lua {
 
 struct alignas(xsimd::default_arch::alignment()) Vector {
-	float _data[4];
+	union {
+		struct {
+			float _x, _y, _z, _w;
+		};
+
+		float _data[4];
+	};
 
 	inline float &x() { return _data[0]; }
 	inline float &y() { return _data[1]; }
