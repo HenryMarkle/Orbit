@@ -1,23 +1,46 @@
 #include <Orbit/castlib.h>
 
+#include <filesystem>
 #include <sstream>
+#include <cstring>
 #include <memory>
 #include <regex>
+
+using std::unordered_map;
+using std::shared_ptr;
+using std::unique_ptr;
+using std::string;
+using std::move;
 
 namespace Orbit::Lua {
 
 void CastMember::load() {
     if (_loaded) return;
+    
+    #ifdef _WIN32
+
+    _image = LoadImage(_path.string().c_str());
+    
+    #else
+    
+    // case-sensitive path handling
+    
+    #endif
+
+    _loaded = true;
 }
+
 void CastMember::unload() {
     if (!_loaded) return;
+    UnloadImage(_image);
+    _loaded = false;
 }
 
 CastMember &CastMember::operator=(CastMember &&other) noexcept {
     if (this == &other) return *this;
 
-    _name = std::move(other._name);
-    _path = std::move(other._path);
+    _name = move(other._name);
+    _path = move(other._path);
     
     _id = other._id;
     _loaded = other._loaded;
@@ -29,8 +52,8 @@ CastMember &CastMember::operator=(CastMember &&other) noexcept {
 }
 
 CastMember::CastMember(CastMember &&other) noexcept {
-    _name = std::move(other._name);
-    _path = std::move(other._path);
+    _name = move(other._name);
+    _path = move(other._path);
     
     _id = other._id;
     _loaded = other._loaded;
@@ -44,7 +67,7 @@ CastMember::CastMember(const std::filesystem::path &path) : _path(path), _loaded
     static std::regex pattern(R"(^[a-zA-Z]+_\d+(_[a-zA-Z ]+)?\.png$)");
 
     if (!std::regex_match(path.string(), pattern)) {
-        throw std::invalid_argument(std::string("invalid cast member")+path.string());
+        throw std::invalid_argument(string("invalid cast member")+path.string());
     }
 
     auto stem = path.stem().string();
@@ -69,8 +92,60 @@ CastMember::CastMember(const std::filesystem::path &path) : _path(path), _loaded
     _id = std::stoi(id_ss.str());
     _name = name_ss.str();
 }
-CastMember::CastMember(int, const std::string &, const std::filesystem::path &, Image) {}
+CastMember::CastMember(int, const string &, const std::filesystem::path &, Image) {}
 
-CastMember::~CastMember() {}
+CastMember::~CastMember() {
+    unload();
+}
+
+
+shared_ptr<CastMember> CastLib::operator[](const string &name) { return _members[name]; }
+CastLib &CastLib::operator=(CastLib &&other) noexcept {
+    if (this == &other) return *this;
+
+    _name = move(other._name);
+    _members = move(other._members);
+
+    _id = other._id;
+
+    other._id = 0;
+
+    return *this;
+}
+CastLib &CastLib::operator<<(const std::filesystem::path &dir) {
+    if (!std::filesystem::is_directory(dir)) {
+        throw std::invalid_argument("path is not a direcotry: " + dir.string());
+    }
+
+    const char *name = _name.c_str();
+
+    for (auto &entry : std::filesystem::directory_iterator(dir)) {
+        const auto &path = entry.path();
+
+        if (!entry.is_regular_file() || path.extension() != ".png") continue;
+
+        const char *ename = path.stem().string().c_str();
+
+        if (std::strncmp(name, ename, std::strlen(name))) continue;
+
+        CastMember member(path);
+
+        if (_members.count(member.name())) continue;
+
+        _members[member.name()] = std::make_shared<CastMember>(std::move(member));
+    }
+}
+
+CastLib::CastLib(CastLib &&other) noexcept : 
+    _id(other._id), 
+    _name(move(other._name)),
+    _members(move(other._members)) {
+    other._id = 0;
+}
+CastLib::CastLib(int id, const string &name) : _id(id), _name(name), _members({}) {}
+CastLib::CastLib(int id, const string &name, unordered_map<string, shared_ptr<CastMember>> &&members) :
+    _name(name), _id(id), _members(move(members)) {}
+
+CastLib::~CastLib() {}
 
 };
