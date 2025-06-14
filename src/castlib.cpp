@@ -41,7 +41,7 @@ CastMember::CastMember(CastMember &&other) noexcept {
 CastMember::CastMember(const std::filesystem::path &path) : _path(path), _loaded(false), _image(Image{0}) {
     // i.e. Drought_1233436_rock.png
 
-    std::regex pattern(R"(^[-\w]+_\d+(_[-\w ]+)?\.png$)");
+    static std::regex pattern(R"(^[a-zA-Z]+_\d+(_[a-zA-Z ]+)?\.png$)");
 
     if (!std::regex_match(path.string(), pattern)) {
         throw std::invalid_argument(std::string("invalid cast member")+path.string());
