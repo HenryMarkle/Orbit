@@ -9,6 +9,7 @@
 #include <Orbit/rect.h>
 #include <Orbit/quad.h>
 #include <Orbit/lua.h>
+#include <Orbit/rl.h>
 
 #include <raylib.h>
 #include <rlgl.h>
@@ -262,12 +263,49 @@ int image_copy_pixels(lua_State *L) {
 
 					Orbit::RlExt::CopyImageParams params;
 					if (lua_istable(L, 5)) params = parse_copy_params(L, 5);
+
+					Orbit::RlExt::CopyImage_GPU(
+                        &runtime->shaders->invb_copy_pixels,
+                        src,
+                        dst,
+                        srcR,
+                        dstR,
+                        params
+                    );
 					
 				} else if (lua_istable(L, 4)) {
-					// copy(src, dst, rect, {opt})
-			
+					// copy(src, dst, rect/quad, {opt})
+					
 					Orbit::RlExt::CopyImageParams params;
 					params = parse_copy_params(L, 4);
+
+					if ((dstPtr = luaL_testudata(L, 4, "rect")) != nullptr) {
+						auto *dstR = *static_cast<Orbit::Lua::Rect **>(luaL_checkudata(L, 4, "rect"));
+						auto srcRect = Orbit::Lua::Rect{0, 0, (float)src->width, (float)src->height};
+						
+						Orbit::RlExt::CopyImage_GPU(
+							&runtime->shaders->copy_pixels,
+							src,
+							dst,
+							&srcRect,
+							dstR,
+							params
+						);
+					}
+					else if ((dstPtr = luaL_testudata(L, 4, "quad")) != nullptr) {
+						auto *dstR = *static_cast<Orbit::Lua::Quad **>(luaL_checkudata(L, 4, "quad"));
+						auto srcRect = Orbit::Lua::Rect{0, 0, (float)src->width, (float)src->height};
+						
+						Orbit::RlExt::CopyImage_GPU(
+							&runtime->shaders->invb_copy_pixels,
+							src,
+							dst,
+							&srcRect,
+							dstR,
+							params
+						);
+					}
+			
 				}
 			}
 		}
@@ -358,12 +396,57 @@ void CopyImage_GPU(
     );
     DrawTexturePro(
         srcT, 
-        Rectangle{from->left(), from->top(), from->width(), from->height()}, 
-        Rectangle{to->left(), to->top(), to->width(), to->height()},
+        Rectangle{from->_left, from->_top, from->width(), from->height()}, 
+        Rectangle{to->_left, to->_top, to->width(), to->height()},
         Vector2{0, 0},
         0, 
         params.color.value_or(WHITE)
     );
+    EndShaderMode();
+    EndTextureMode();
+
+    UnloadImage(*dst);
+	*dst = LoadImageFromTexture(canvas.texture);
+	ImageFlipVertical(dst);
+
+	UnloadTexture(srcT);
+	UnloadTexture(dstT);
+	if (mask) UnloadTexture(*mask);
+	UnloadRenderTexture(canvas);
+}
+
+void CopyImage_GPU(
+	const Orbit::InvbCopyPixelsShader *shader, 
+	const Image *src, 
+	Image *dst, 
+	const Orbit::Lua::Rect *from, 
+	const Orbit::Lua::Quad *to, 
+	const CopyImageParams &params
+) {
+	auto srcT = LoadTextureFromImage(*src);
+	auto dstT = LoadTextureFromImage(*dst);
+	Texture2D *mask = nullptr;
+	auto canvas = LoadRenderTexture(dstT.width, dstT.height);
+	auto srcRect = Rectangle{from->_left, from->_top, from->width(), from->height()};
+
+    if (params.mask) *mask = LoadTextureFromImage(*params.mask);
+		
+    BeginTextureMode(canvas);
+    DrawTexture(dstT, 0, 0, WHITE);
+    
+    BeginShaderMode(shader->shader);
+    shader->prepare(
+        srcT, 
+        dstT,
+		srcRect,
+		to->vertices,
+        params.color != std::nullopt, 
+        static_cast<int>(params.ink), 
+        params.blend,
+        false,
+        mask
+    );
+	Orbit::RlExt::DrawTexture(&srcT, &srcRect, to, params.color.value_or(WHITE));
     EndShaderMode();
     EndTextureMode();
 

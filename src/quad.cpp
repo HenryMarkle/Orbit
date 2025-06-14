@@ -391,28 +391,55 @@ void LuaRuntime::_register_quad() {
 
 	const auto add = [](lua_State *L) {
 		Quad a = **static_cast<Quad **>(luaL_checkudata(L, 1, "quad"));
-		Quad b = **static_cast<Quad **>(luaL_checkudata(L, 2, "quad"));
-		
+		void *rhs = nullptr;
 
-		Quad **res = static_cast<Quad **>(lua_newuserdata(L, sizeof(Quad *)));
+		if ((rhs = luaL_testudata(L, 2, "quad")) != nullptr) {
+			Quad b = **static_cast<Quad **>(rhs);
+	
+			Quad **res = static_cast<Quad **>(lua_newuserdata(L, sizeof(Quad *)));
+	
+			*res = new Quad(a + b);
+	
+			luaL_getmetatable(L, "quad");
+			lua_setmetatable(L, -2);
+		} else if ((rhs = luaL_testudata(L, 2, "point")) != nullptr) {
+			Vector2 b = *static_cast<Vector2 *>(rhs);
+	
+			Quad **res = static_cast<Quad **>(lua_newuserdata(L, sizeof(Quad *)));
+	
+			*res = new Quad(a + b);
+	
+			luaL_getmetatable(L, "quad");
+			lua_setmetatable(L, -2);
+		} else return luaL_error(L, "invalid right side operand");
 
-		*res = new Quad(a + b);
-
-		luaL_getmetatable(L, "quad");
-		lua_setmetatable(L, -2);
 
 		return 1;
 	};
 
 	const auto subtract = [](lua_State *L) {
 		Quad a = **static_cast<Quad **>(luaL_checkudata(L, 1, "quad"));
-		Quad b = **static_cast<Quad **>(luaL_checkudata(L, 2, "quad"));
-		
-		Quad **res = static_cast<Quad **>(lua_newuserdata(L, sizeof(Quad *)));
-		*res = new Quad(a - b);
+		void *rhs = nullptr;
 
-		luaL_getmetatable(L, "quad");
-		lua_setmetatable(L, -2);
+		if ((rhs = luaL_testudata(L, 2, "quad")) != nullptr) {
+			Quad b = **static_cast<Quad **>(rhs);
+	
+			Quad **res = static_cast<Quad **>(lua_newuserdata(L, sizeof(Quad *)));
+	
+			*res = new Quad(a - b);
+	
+			luaL_getmetatable(L, "quad");
+			lua_setmetatable(L, -2);
+		} else if ((rhs = luaL_testudata(L, 2, "point")) != nullptr) {
+			Vector2 b = *static_cast<Vector2 *>(rhs);
+	
+			Quad **res = static_cast<Quad **>(lua_newuserdata(L, sizeof(Quad *)));
+	
+			*res = new Quad(a - b);
+	
+			luaL_getmetatable(L, "quad");
+			lua_setmetatable(L, -2);
+		} else return luaL_error(L, "invalid right side operand");
 
 		return 1;
 	};

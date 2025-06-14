@@ -27,7 +27,7 @@ public:
 
 	void load();
 	void unload();
-	void reload();
+	inline void reload() { unload(); load(); }
 
 	CastMember &operator=(CastMember &&) noexcept;
 	CastMember &operator=(const CastMember &) = delete;
@@ -55,6 +55,9 @@ public:
 	std::shared_ptr<CastMember> operator[](const std::string &);
 	CastLib &operator=(CastLib &&) noexcept;
 	CastLib &operator=(const CastLib &) = delete;
+
+	// Load all members from a given directory.
+	CastLib &operator<<(const std::filesystem::path &);
 
 	CastLib(CastLib &&) noexcept;
 	CastLib(const CastLib &) = delete;

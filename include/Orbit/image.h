@@ -56,7 +56,7 @@ void CopyImage_GPU(
 );
 
 void CopyImage_GPU(
-	const Orbit::CopyPixelsShader *shader, 
+	const Orbit::InvbCopyPixelsShader *shader, 
 	const Image *src, 
 	Image *dst, 
 	const Orbit::Lua::Rect *from, 
