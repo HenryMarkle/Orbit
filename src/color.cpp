@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <sstream>
 
-#include <Orbit/lua.h>
+#include <Orbit/Lua/lua.h>
 
 #include <raylib.h>
 

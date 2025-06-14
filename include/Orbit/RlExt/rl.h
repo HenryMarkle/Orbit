@@ -1,8 +1,5 @@
 #pragma once
 
-#include <Orbit/rect.h>
-#include <Orbit/quad.h>
-
 #include <raylib.h>
 
 namespace Orbit::RlExt {
@@ -10,7 +7,7 @@ namespace Orbit::RlExt {
 void DrawTexture(
   const Texture2D *texture, 
   const Rectangle *src, 
-  const Orbit::Lua::Quad *quad, 
+  const Vector2 quad[4], 
   Color color
 );
 

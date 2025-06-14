@@ -4,7 +4,7 @@
 #include <cstring>
 #include <math.h>
 
-#include <Orbit/lua.h>
+#include <Orbit/Lua/lua.h>
 
 #include <raylib.h>
 #include <raymath.h>

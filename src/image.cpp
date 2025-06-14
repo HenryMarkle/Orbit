@@ -5,11 +5,11 @@
 
 #include <xsimd/xsimd.hpp>
 
-#include <Orbit/image.h>
-#include <Orbit/rect.h>
-#include <Orbit/quad.h>
-#include <Orbit/lua.h>
-#include <Orbit/rl.h>
+#include <Orbit/RlExt/image.h>
+#include <Orbit/Lua/rect.h>
+#include <Orbit/Lua/quad.h>
+#include <Orbit/Lua/lua.h>
+#include <Orbit/RlExt/rl.h>
 
 #include <raylib.h>
 #include <rlgl.h>
@@ -446,7 +446,7 @@ void CopyImage_GPU(
         false,
         mask
     );
-	Orbit::RlExt::DrawTexture(&srcT, &srcRect, to, params.color.value_or(WHITE));
+	Orbit::RlExt::DrawTexture(&srcT, &srcRect, to->vertices, params.color.value_or(WHITE));
     EndShaderMode();
     EndTextureMode();
 

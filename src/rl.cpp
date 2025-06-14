@@ -1,7 +1,4 @@
-#include <Orbit/rl.h>
-
-#include <Orbit/rect.h>
-#include <Orbit/quad.h>
+#include <Orbit/RlExt/rl.h>
 
 #include <raylib.h>
 #include <rlgl.h>
@@ -11,7 +8,7 @@ namespace Orbit::RlExt {
 void DrawTexture(
   const Texture2D *texture, 
   const Rectangle *src, 
-  const Orbit::Lua::Quad *quad, 
+  const Vector2 quad[4], 
   Color color
 ) {
     rlSetTexture(texture->id);
@@ -20,21 +17,21 @@ void DrawTexture(
 
     rlColor4ub(color.r, color.g, color.b, color.a);
 
-    bool flipx = quad->topleft.x > quad->topright.x && quad->bottomleft.x > quad->bottomright.x;
-    bool flipy = quad->topleft.y > quad->bottomleft.y && quad->topright.y > quad->bottomright.y;
+    bool flipx = quad[0].x > quad[1].x && quad[3].x > quad[2].x;
+    bool flipy = quad[0].y > quad[3].y && quad[1].y > quad[2].y;
     
 
-    int vtrx = flipx ? quad->topleft.x : quad->topright.x;
-    int vtry = flipy ? quad->bottomright.y : quad->topright.y;
+    int vtrx = flipx ? quad[0].x : quad[1].x;
+    int vtry = flipy ? quad[2].y : quad[1].y;
 
-    int vtlx = flipx ? quad->topright.x : quad->topleft.x;
-    int vtly = flipy ? quad->bottomleft.y : quad->topleft.y;
+    int vtlx = flipx ? quad[1].x : quad[0].x;
+    int vtly = flipy ? quad[3].y : quad[0].y;
 
-    int vblx = flipx ? quad->bottomright.x : quad->bottomleft.x;
-    int vbly = flipy ? quad->topleft.y : quad->bottomleft.y;
+    int vblx = flipx ? quad[2].x : quad[3].x;
+    int vbly = flipy ? quad[0].y : quad[3].y;
 
-    int vbrx = flipx ? quad->bottomleft.x : quad->bottomright.x;
-    int vbry = flipy ? quad->topright.y : quad->bottomright.y;
+    int vbrx = flipx ? quad[3].x : quad[2].x;
+    int vbry = flipy ? quad[1].y : quad[2].y;
 
 
     float topright_vx = (src->x + src->width) / texture->width;

@@ -6,8 +6,8 @@
 #include <stdexcept>
 #include <sstream>
 
-#include <Orbit/lua.h>
-#include <Orbit/rect.h>
+#include <Orbit/Lua/lua.h>
+#include <Orbit/Lua/rect.h>
 
 #include <xsimd/xsimd.hpp>
 

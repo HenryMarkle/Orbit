@@ -25,7 +25,7 @@ private:
 
 	int _width, _height;
 	bool _redraw;
-	std::string _entry;
+	std::string _entry, _init;
     
 	lua_State *L;
 

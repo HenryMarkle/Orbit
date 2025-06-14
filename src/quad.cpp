@@ -4,8 +4,8 @@
 #include <iostream>
 #include <iomanip>
 
-#include <Orbit/lua.h>
-#include <Orbit/quad.h>
+#include <Orbit/Lua/lua.h>
+#include <Orbit/Lua/quad.h>
 
 #include <xsimd/xsimd.hpp>
 #include <xsimd/config/xsimd_config.hpp>

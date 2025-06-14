@@ -1,7 +1,7 @@
 #include <string>
 #include <stdexcept>
 
-#include <Orbit/lua.h>
+#include <Orbit/Lua/lua.h>
 #include <Orbit/paths.h>
 
 #include <spdlog/spdlog.h>
@@ -58,7 +58,7 @@ void LuaRuntime::load_scripts() {
 }
 
 void LuaRuntime::init() {
-	lua_getglobal(L, "init");
+	lua_getglobal(L, _init.c_str());
 
 	if (!lua_isfunction(L, -1)) {
 		lua_pop(L, 1);
@@ -69,9 +69,9 @@ void LuaRuntime::init() {
 
 	if (res != LUA_OK) {
 		std::string err = lua_tostring(L, -1);
-		logger->error(std::string("failed to run init function 'init': ") + err);
+		logger->error(std::string("failed to run init function '") + _init + "': " + err);
 		lua_pop(L, 1);
-		throw std::runtime_error(std::string("failed to run init function 'init':") + err);
+		throw std::runtime_error(std::string("failed to run init function '") + _init + "': " + err);
 	}
 }
 
@@ -109,7 +109,8 @@ LuaRuntime::LuaRuntime(int width, int height, std::shared_ptr<Orbit::Paths> path
 	logger(logger),
 	shaders(shaders),
 	_redraw(false),
-	_entry("exitFrame") {
+	_entry("exitFrame"),
+	_init("initFrame") {
 
 	L =  luaL_newstate();
 	

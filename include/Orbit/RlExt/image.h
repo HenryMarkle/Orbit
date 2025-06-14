@@ -3,8 +3,8 @@
 #include <filesystem>
 #include <optional>
 
-#include <Orbit/rect.h>
-#include <Orbit/quad.h>
+#include <Orbit/Lua/rect.h>
+#include <Orbit/Lua/quad.h>
 #include <Orbit/shaders.h>
 
 #include <raylib.h>

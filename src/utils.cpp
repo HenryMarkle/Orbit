@@ -3,12 +3,12 @@
 #include <iomanip>
 #include <filesystem>
 
-#include <Orbit/lua.h>
-#include <Orbit/vector.h>
-#include <Orbit/rect.h>
-#include <Orbit/quad.h>
-#include <Orbit/image.h>
-#include <Orbit/rl.h>
+#include <Orbit/Lua/lua.h>
+#include <Orbit/Lua/vector.h>
+#include <Orbit/Lua/rect.h>
+#include <Orbit/Lua/quad.h>
+#include <Orbit/RlExt/image.h>
+#include <Orbit/RlExt/rl.h>
 
 #include <spdlog/spdlog.h>
 #include <raylib.h>
@@ -750,7 +750,7 @@ int draw(lua_State *L) {
 			BeginTextureMode(runtime->viewport);
 			BeginShaderMode(s.shader);
 			s.prepare(t, srcRect, dst->vertices);
-			Orbit::RlExt::DrawTexture(&t, &srcRect, dst, WHITE);
+			Orbit::RlExt::DrawTexture(&t, &srcRect, dst->vertices, WHITE);
 			EndShaderMode();
 			EndTextureMode();
 

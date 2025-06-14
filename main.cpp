@@ -2,7 +2,7 @@
 #include <memory>
 #include <string>
 
-#include <Orbit/lua.h>
+#include <Orbit/Lua/lua.h>
 #include <Orbit/shaders.h>
 #include <Orbit/paths.h>
 
