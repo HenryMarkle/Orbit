@@ -129,6 +129,16 @@ void LuaRuntime::_register_rectangle() {
 		else if (std::strcmp(field, "top") == 0) lua_pushnumber(L, p->_data[1]);
 		else if (std::strcmp(field, "right") == 0) lua_pushnumber(L, p->_data[2]);
 		else if (std::strcmp(field, "bottom") == 0) lua_pushnumber(L, p->_data[3]);
+		else if (std::strcmp(field, "width") == 0) lua_pushnumber(L, p->width());
+		else if (std::strcmp(field, "height") == 0) lua_pushnumber(L, p->height());
+		else if (std::strcmp(field, "pos") == 0) {
+			Vector2 *pos = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
+
+			*pos = *reinterpret_cast<Vector2 *>(p->_data);
+
+			luaL_getmetatable(L, "point");
+			lua_setmetatable(L, -2);
+		}
 		else lua_pushnil(L);
 
 		return 1;
