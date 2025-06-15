@@ -4,7 +4,7 @@
 #include <iostream>
 #include <iomanip>
 
-#include <Orbit/Lua/lua.h>
+#include <Orbit/Lua/runtime.h>
 #include <Orbit/Lua/quad.h>
 
 #include <xsimd/xsimd.hpp>

@@ -10,11 +10,13 @@
 #include <spdlog/spdlog.h>
 #include <raylib.h>
 
+#ifndef MAIN_FILE
+
 extern "C" {
     #include <lua.h>
-    #include <lauxlib.h>
-    #include <lualib.h>
 }
+
+#endif
 
 namespace Orbit::Lua {
 

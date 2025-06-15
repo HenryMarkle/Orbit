@@ -2,7 +2,7 @@
 #include <memory>
 #include <string>
 
-#include <Orbit/Lua/lua.h>
+#include <Orbit/Lua/runtime.h>
 #include <Orbit/shaders.h>
 #include <Orbit/paths.h>
 
@@ -10,6 +10,8 @@
 #include <spdlog/sinks/basic_file_sink.h>
 
 #include <raylib.h>
+
+#define MAIN_FILE
 
 using std::shared_ptr;
 using std::make_shared;

@@ -3,7 +3,7 @@
 #include <iomanip>
 #include <filesystem>
 
-#include <Orbit/Lua/lua.h>
+#include <Orbit/Lua/runtime.h>
 #include <Orbit/Lua/vector.h>
 #include <Orbit/Lua/rect.h>
 #include <Orbit/Lua/quad.h>

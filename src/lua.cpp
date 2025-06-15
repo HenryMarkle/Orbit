@@ -1,7 +1,7 @@
 #include <string>
 #include <stdexcept>
 
-#include <Orbit/Lua/lua.h>
+#include <Orbit/Lua/runtime.h>
 #include <Orbit/paths.h>
 
 #include <spdlog/spdlog.h>

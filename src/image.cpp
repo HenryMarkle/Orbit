@@ -8,7 +8,7 @@
 #include <Orbit/RlExt/image.h>
 #include <Orbit/Lua/rect.h>
 #include <Orbit/Lua/quad.h>
-#include <Orbit/Lua/lua.h>
+#include <Orbit/Lua/runtime.h>
 #include <Orbit/RlExt/rl.h>
 
 #include <raylib.h>

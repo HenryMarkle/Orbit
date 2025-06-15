@@ -5,7 +5,7 @@
 #include <cstring>
 #include <sstream>
 
-#include <Orbit/Lua/lua.h>
+#include <Orbit/Lua/runtime.h>
 #include <Orbit/Lua/vector.h>
 
 #include <xsimd/xsimd.hpp>
