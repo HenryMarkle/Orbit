@@ -126,6 +126,8 @@ CastLib &CastLib::operator<<(const std::filesystem::path &dir) {
 
         _members[member.name()] = std::make_shared<CastMember>(std::move(member));
     }
+
+    return *this;
 }
 
 CastLib::CastLib(CastLib &&other) noexcept : 
