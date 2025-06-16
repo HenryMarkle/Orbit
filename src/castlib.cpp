@@ -17,15 +17,7 @@ namespace Orbit::Lua {
 void CastMember::load() {
     if (_loaded) return;
     
-    #ifdef _WIN32
-
     _image = LoadImage(_path.string().c_str());
-    
-    #else
-    
-    // case-sensitive path handling
-    
-    #endif
 
     _loaded = true;
 }
@@ -143,7 +135,7 @@ CastLib::CastLib(CastLib &&other) noexcept :
     other._id = 0;
 }
 CastLib::CastLib(int id, const string &name) : _id(id), _name(name), _members({}) {}
-CastLib::CastLib(int id, const string &name, unordered_map<string, shared_ptr<CastMember>> &&members) :
+CastLib::CastLib(int id, const string &name, unordered_map<string, shared_ptr<CastMember>, CaseInsensitiveHash, CaseInsensitiveEqual> &&members) :
     _name(name), _id(id), _members(move(members)) {}
 
 CastLib::~CastLib() {}

@@ -42,6 +42,9 @@ private:
 	void _register_utils();
 	void _register_lib();
 
+	void _register_mouse_events();
+	void _register_keyboard_events();
+	void _register_lingo_api();
 	
 public:
 

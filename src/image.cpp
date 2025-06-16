@@ -186,130 +186,112 @@ Orbit::RlExt::CopyImageParams parse_copy_params(lua_State *L, int index) {
 
 int image_copy_pixels(lua_State *L) {
 	int count = lua_gettop(L);
-
-	Image *src = static_cast<Image *>(luaL_checkudata(L, 1, "image"));
-	Image *dst = static_cast<Image *>(luaL_checkudata(L, 2, "image"));
-
 	auto* runtime = static_cast<Orbit::Lua::LuaRuntime*>(lua_touserdata(L, lua_upvalueindex(1)));
 
-	switch (count) {
-		case 2: {
-            auto srcT = LoadTextureFromImage(*src);
-            auto dstT = LoadTextureFromImage(*dst);
-            Texture2D *mask = nullptr;
-            auto canvas = LoadRenderTexture(dstT.width, dstT.height);
+	Image *dst = static_cast<Image *>(luaL_checkudata(L, 1, "image"));
+	Image *src = static_cast<Image *>(luaL_checkudata(L, 2, "image"));
 
-			BeginTextureMode(canvas);
-			DrawTexture(dstT, 0, 0, WHITE);
-			DrawTexture(srcT, 0, 0, WHITE);
-			EndTextureMode();
+	void *arg3Ptr = nullptr;
+	void *arg4Ptr = nullptr;
 
-            UnloadImage(*dst);
-            *dst = LoadImageFromTexture(canvas.texture);
-            ImageFlipVertical(dst);
+	if (
+		(arg3Ptr = luaL_testudata(L, 3, "rect")) != nullptr &&
+		(arg4Ptr = luaL_testudata(L, 4, "rect")) != nullptr
+	) {
+		// copy(dst, src, dstRect, srcRect, {opt})
 
-            UnloadTexture(srcT);
-            UnloadTexture(dstT);
-            if (mask) UnloadTexture(*mask);
-            UnloadRenderTexture(canvas);
-		} 
-		break;
+		auto *dstRect = *static_cast<Orbit::Lua::Rect **>(arg3Ptr);
+		auto *srcRect = *static_cast<Orbit::Lua::Rect **>(arg4Ptr);
 
-		case 3: {
-			if (lua_istable(L, 3)) {
-				// copy(src, dst, {opt})
-		
-				Orbit::RlExt::CopyImageParams params;
-				if (lua_istable(L, 3)) params = parse_copy_params(L, 3);
-		
-                Orbit::Lua::Rect rect = {0, 0, (float)src->width, (float)src->height};
+		Orbit::RlExt::CopyImageParams params;
+		if (lua_istable(L, 5)) params = parse_copy_params(L, 5);
 
-                Orbit::RlExt::CopyImage_GPU(
-                    &runtime->shaders->copy_pixels,
-                    src,
-                    dst,
-                    &rect,
-                    &rect,
-                    params
-                );
-		
-				return 0;
-			}
-		}
-		break;
+		Orbit::RlExt::CopyImage_GPU(
+			&runtime->shaders->copy_pixels,
+			src,
+			dst,
+			srcRect,
+			dstRect,
+			params
+		);
+	}
+	else if (
+		(arg3Ptr = luaL_testudata(L, 3, "quad")) != nullptr &&
+		(arg4Ptr = luaL_testudata(L, 4, "rect")) != nullptr
+	) {
+		// copy(dst, src, dstQuad, srcRect, {opt})
 
-		default: {
-			if (luaL_testudata(L, 3, "rect")) {
-				auto *srcR = *static_cast<Orbit::Lua::Rect **>(luaL_checkudata(L, 3, "rect"));
-				void *dstPtr = nullptr;
-			
-				if ((dstPtr = luaL_testudata(L, 4, "rect")) != nullptr) {
-					auto *dstR = *static_cast<Orbit::Lua::Rect **>(luaL_checkudata(L, 4, "rect"));
+		auto *dstQuad = *static_cast<Orbit::Lua::Quad **>(arg3Ptr);
+		auto *srcRect = *static_cast<Orbit::Lua::Rect **>(arg4Ptr);
 
-					Orbit::RlExt::CopyImageParams params;
-					if (lua_istable(L, 5)) params = parse_copy_params(L, 5);
+		Orbit::RlExt::CopyImageParams params;
+		if (lua_istable(L, 5)) params = parse_copy_params(L, 5);
 
-					Orbit::RlExt::CopyImage_GPU(
-                        &runtime->shaders->copy_pixels,
-                        src,
-                        dst,
-                        srcR,
-                        dstR,
-                        params
-                    );
-			
-				} else if ((dstPtr = luaL_testudata(L, 4, "quad")) != nullptr) {
-					auto *dstR = *static_cast<Orbit::Lua::Quad **>(luaL_checkudata(L, 4, "quad"));
+		Orbit::RlExt::CopyImage_GPU(
+			&runtime->shaders->invb_copy_pixels,
+			src,
+			dst,
+			srcRect,
+			dstQuad,
+			params
+		);
+	} 
+	else if (
+		(arg3Ptr = luaL_testudata(L, 3, "rect")) != nullptr
+	) {
+		// copy(dst, src, dstRect, {opt})
 
-					Orbit::RlExt::CopyImageParams params;
-					if (lua_istable(L, 5)) params = parse_copy_params(L, 5);
+		auto *dstRect = *static_cast<Orbit::Lua::Rect **>(arg3Ptr);
+		auto srcRect = Orbit::Lua::Rect {0, 0, (float)src->width, (float)src->height};
 
-					Orbit::RlExt::CopyImage_GPU(
-                        &runtime->shaders->invb_copy_pixels,
-                        src,
-                        dst,
-                        srcR,
-                        dstR,
-                        params
-                    );
-					
-				} else if (lua_istable(L, 4)) {
-					// copy(src, dst, rect/quad, {opt})
-					
-					Orbit::RlExt::CopyImageParams params;
-					params = parse_copy_params(L, 4);
+		Orbit::RlExt::CopyImageParams params;
+		if (lua_istable(L, 4)) params = parse_copy_params(L, 4);
 
-					if ((dstPtr = luaL_testudata(L, 4, "rect")) != nullptr) {
-						auto *dstR = *static_cast<Orbit::Lua::Rect **>(luaL_checkudata(L, 4, "rect"));
-						auto srcRect = Orbit::Lua::Rect{0, 0, (float)src->width, (float)src->height};
-						
-						Orbit::RlExt::CopyImage_GPU(
-							&runtime->shaders->copy_pixels,
-							src,
-							dst,
-							&srcRect,
-							dstR,
-							params
-						);
-					}
-					else if ((dstPtr = luaL_testudata(L, 4, "quad")) != nullptr) {
-						auto *dstR = *static_cast<Orbit::Lua::Quad **>(luaL_checkudata(L, 4, "quad"));
-						auto srcRect = Orbit::Lua::Rect{0, 0, (float)src->width, (float)src->height};
-						
-						Orbit::RlExt::CopyImage_GPU(
-							&runtime->shaders->invb_copy_pixels,
-							src,
-							dst,
-							&srcRect,
-							dstR,
-							params
-						);
-					}
-			
-				}
-			}
-		}
-		break;
+		Orbit::RlExt::CopyImage_GPU(
+			&runtime->shaders->copy_pixels,
+			src,
+			dst,
+			&srcRect,
+			dstRect,
+			params
+		);
+	}
+	else if (
+		(arg3Ptr = luaL_testudata(L, 3, "quad")) != nullptr
+	) {
+		// copy(dst, src, dstRect, {opt})
+
+		auto *dstQuad = *static_cast<Orbit::Lua::Quad **>(arg3Ptr);
+		auto srcRect = Orbit::Lua::Rect {0, 0, (float)src->width, (float)src->height};
+
+		Orbit::RlExt::CopyImageParams params;
+		if (lua_istable(L, 4)) params = parse_copy_params(L, 4);
+
+		Orbit::RlExt::CopyImage_GPU(
+			&runtime->shaders->invb_copy_pixels,
+			src,
+			dst,
+			&srcRect,
+			dstQuad,
+			params
+		);
+	}
+	else {
+		// copy(dst, src, {opt})
+
+		auto targetRect = Orbit::Lua::Rect {0, 0, (float)src->width, (float)src->height};
+
+		Orbit::RlExt::CopyImageParams params;
+		if (lua_istable(L, 3)) params = parse_copy_params(L, 3);
+
+		Orbit::RlExt::CopyImage_GPU(
+			&runtime->shaders->copy_pixels,
+			src,
+			dst,
+			&targetRect,
+			&targetRect,
+			params
+		);
 	}
 
 	return 0;
@@ -320,12 +302,19 @@ int image_index(lua_State *L) {
 	Image *img = static_cast<Image *>(luaL_checkudata(L, 1, META));
 	const char *field = luaL_checkstring(L, 2);
 
+	auto* runtime = static_cast<Orbit::Lua::LuaRuntime*>(lua_touserdata(L, lua_upvalueindex(1)));
 	
 	if (std::strcmp(field, "width") == 0) lua_pushnumber(L, img->width);
 	else if (std::strcmp(field, "height") == 0) lua_pushnumber(L, img->height);
-	else if (std::strcmp(field, "fill") == 0) lua_pushcfunction(L, image_fill);
-	else if (!std::strcmp(field, "copy") || !std::strcmp(field, "copyPixels")) lua_pushcfunction(L, image_copy_pixels);
-	else if (std::strcmp(field, "silhouette") == 0) lua_pushcfunction(L, image_make_silhouette);
+	else if (std::strcmp(field, "clear") == 0) lua_pushcfunction(L, image_fill);
+	else if (std::strcmp(field, "copyPixels") == 0) {
+		lua_pushlightuserdata(L, runtime);
+		lua_pushcclosure(L, image_copy_pixels, 1);
+	}
+	else if (std::strcmp(field, "silhouette") == 0) {
+		lua_pushlightuserdata(L, runtime);
+		lua_pushcclosure(L, image_make_silhouette, 1);
+	}
 	else lua_pushnil(L);
 
 	return 1;
@@ -471,7 +460,8 @@ void LuaRuntime::_register_image() {
 	lua_pushcfunction(L, image_tostring);
 	lua_setfield(L, -2, "__tostring");
 
-	lua_pushcfunction(L, image_index);
+	lua_pushlightuserdata(L, this);
+	lua_pushcclosure(L, image_index, 1);
 	lua_setfield(L, -2, "__index");
 
 	lua_pushcfunction(L, image_eq);
@@ -486,7 +476,7 @@ void LuaRuntime::_register_image() {
 
 	lua_pushlightuserdata(L, this);
 	lua_pushcclosure(L, image_copy_pixels, 1);
-	lua_setglobal(L, "copy");
+	lua_setglobal(L, "copyPixels");
 
 	lua_pop(L, 1);
 
