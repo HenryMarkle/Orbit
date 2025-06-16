@@ -5,29 +5,12 @@ A simple renderer with an embedded Lua runtime.
 
 ### Prerequisites
 
-- C/C++ compiler (W64devkit for Windows)
+- C/C++ compiler
 - CMake
 - Git
 
-First, clone the project, then:
+First, clone the project, then in the root directory:
 
-### Windows
-
-in **/build**:
-
-```bash
-cmake .. -G "MinGW Makefiles"
-```
-
-and then:
-
-```bash
-mingw32-make
-```
-
-### Linux
-
-in the root directory
 ```bash
 cmake --build build
 ```
@@ -35,3 +18,14 @@ cmake --build build
 ---
 
 The output executable will be in **/build/bin**
+
+## How to use
+
+Three folders need to exist in the same directory of the executable:
+- data
+- logs
+- scripts
+
+There needs to be at least one Lua script file in the `scripts` directory, with both `initFrame()` and `exitFrame()` functions defined.
+
+Lastly, run the executable and see what works and doesn't.
