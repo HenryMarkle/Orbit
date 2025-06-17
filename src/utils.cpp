@@ -912,6 +912,77 @@ void parse_lingo_expr_tree(lua_State *L, mp::Node *nodes) {
 		lua_settable(L, -3);
 		return;
 	}
+
+	//
+
+	auto *gcall = dynamic_cast<mp::GCall *>(nodes);
+	if (gcall) {
+		auto &name = gcall->name;
+
+		if (name == "point") {
+			auto *argi1 = dynamic_cast<mp::Int *>(gcall->args[0].get());
+			auto *argf1 = dynamic_cast<mp::Float *>(gcall->args[0].get());
+			auto *argi2 = dynamic_cast<mp::Int *>(gcall->args[1].get());
+			auto *argf2 = dynamic_cast<mp::Float *>(gcall->args[1].get());
+
+			Vector2 *v = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
+
+			v->x = argi1 ? argi1->number : (argf1 ? argf1->number : 0);
+			v->y = argi2 ? argi2->number : (argf2 ? argf2->number : 0);
+
+			luaL_getmetatable(L, "point");
+			lua_setmetatable(L, -2);
+			return;
+		}
+
+		if (name == "rect") {
+			auto *argi1 = dynamic_cast<mp::Int *>(gcall->args[0].get());
+			auto *argf1 = dynamic_cast<mp::Float *>(gcall->args[0].get());
+			
+			auto *argi2 = dynamic_cast<mp::Int *>(gcall->args[1].get());
+			auto *argf2 = dynamic_cast<mp::Float *>(gcall->args[1].get());
+			
+			auto *argi3 = dynamic_cast<mp::Int *>(gcall->args[2].get());
+			auto *argf3 = dynamic_cast<mp::Float *>(gcall->args[2].get());
+			
+			auto *argi4 = dynamic_cast<mp::Int *>(gcall->args[3].get());
+			auto *argf4 = dynamic_cast<mp::Float *>(gcall->args[3].get());
+		
+			Rect **r = static_cast<Rect **>(lua_newuserdata(L, sizeof(Rect *)));
+
+			auto *newRect = new Rect(
+				argi1 ? argi1->number : (argf1 ? argf1->number : 0),
+				argi2 ? argi2->number : (argf2 ? argf2->number : 0),
+				argi3 ? argi3->number : (argf3 ? argf3->number : 0),
+				argi4 ? argi4->number : (argf4 ? argf4->number : 0)
+			);
+
+			*r = newRect;
+
+			luaL_getmetatable(L, "rect");
+			lua_setmetatable(L, -2);
+		}
+
+		if (name == "color") {
+			auto *argi1 = dynamic_cast<mp::Int *>(gcall->args[0].get());
+			auto *argi2 = dynamic_cast<mp::Int *>(gcall->args[1].get());
+			auto *argi3 = dynamic_cast<mp::Int *>(gcall->args[2].get());
+
+			Color *c = static_cast<Color *>(lua_newuserdata(L, sizeof(Color)));
+
+			c->r = argi1 ? argi1->number : 0;
+			c->g = argi2 ? argi2->number : 0;
+			c->b = argi3 ? argi3->number : 0;
+			c->a = 255;
+
+			luaL_getmetatable(L, "color");
+			lua_setmetatable(L, -2);
+			return;
+		}
+
+		lua_pushnil(L);
+		return;
+	}
 }
 
 int parse_lingo_expr(lua_State *L) {
