@@ -10,6 +10,9 @@
 #include <Orbit/RlExt/image.h>
 #include <Orbit/RlExt/rl.h>
 
+#include <MobitParser/tokens.h>
+#include <MobitParser/nodes.h>
+
 #include <spdlog/spdlog.h>
 #include <raylib.h>
 #include <rlgl.h>
@@ -852,6 +855,75 @@ int mouse_pos(lua_State *L) {
 	return 1;
 }
 
+void parse_lingo_expr_tree(lua_State *L, mp::Node *nodes) {
+	if (nodes == nullptr) {
+		lua_pushnil(L);
+		return;
+	}
+
+	auto *v = dynamic_cast<mp::Void *>(nodes);
+	if (v) {
+		lua_pushnil(L);
+		return;
+	}
+
+	auto *integer = dynamic_cast<mp::Int *>(nodes);
+	if (integer) {
+		lua_pushinteger(L, integer->number);
+		return;
+	}
+
+	auto *floating = dynamic_cast<mp::Float *>(nodes);
+	if (floating) {
+		lua_pushnumber(L, floating->number);
+		return;
+	}
+
+	auto *str = dynamic_cast<mp::String *>(nodes);
+	if (str) {
+		lua_pushstring(L, str->str.c_str());
+		return;
+	}
+
+	auto *sym = dynamic_cast<mp::Symbol *>(nodes);
+	if (sym) {
+		lua_pushstring(L, sym->str.c_str());
+		return;
+	}
+
+	auto *list = dynamic_cast<mp::List *>(nodes);
+	if (list) {
+		lua_newtable(L);
+		for (int i = 0; i < list->elements.size(); i++) {
+			parse_lingo_expr_tree(L, list->elements[i].get());
+			lua_rawseti(L, -2, i+1);
+		}
+		lua_settable(L, -3);
+		return;
+	}
+
+	auto *props = dynamic_cast<mp::Props *>(nodes);
+	if (props) {
+		lua_newtable(L);
+		for (auto &p : props->map) {
+			lua_pushstring(L, p.first.c_str());
+			parse_lingo_expr_tree(L, p.second.get());
+		}
+		lua_settable(L, -3);
+		return;
+	}
+}
+
+int parse_lingo_expr(lua_State *L) {
+	const char *expr_cstr = luaL_checkstring(L, 1);
+	const std::string expr_str(expr_cstr);
+
+	auto nodes = mp::parse(expr_str);
+
+	parse_lingo_expr_tree(L, nodes.get());
+	return 1;
+}
+
 namespace Orbit::Lua {
 
 void LuaRuntime::_register_utils() {
@@ -909,6 +981,8 @@ void LuaRuntime::_register_utils() {
 	lua_pushcclosure(L, clear, 1);
 	lua_setglobal(L, "clear");
 	
+	lua_pushcfunction(L, parse_lingo_expr);
+	lua_setglobal(L, "fromLingo");
 }
 
 };

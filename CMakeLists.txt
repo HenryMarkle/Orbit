@@ -11,6 +11,7 @@ add_subdirectory(libs/lua)
 add_subdirectory(libs/spdlog)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/libs/raylib)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/libs/xsimd)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/libs/MobitParser)
 
 file(GLOB MAIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 
@@ -27,7 +28,7 @@ target_include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/libs/tomlplusplus/include
 )
 
-target_link_libraries(Orbit PRIVATE raylib lua spdlog xsimd)
+target_link_libraries(Orbit PRIVATE raylib lua spdlog xsimd MobitParser)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # Visual Studio
