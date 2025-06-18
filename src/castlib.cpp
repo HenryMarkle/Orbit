@@ -1,10 +1,22 @@
 #include <Orbit/Lua/castlib.h>
+#include <Orbit/Lua/runtime.h>
+#include <Orbit/hash.h>
 
 #include <filesystem>
+#include <iostream>
 #include <sstream>
+#include <fstream>
 #include <cstring>
 #include <memory>
 #include <regex>
+
+#include <raylib.h>
+
+extern "C" {
+    #include <lua.h>
+    #include <lauxlib.h>
+    #include <lualib.h>
+}
 
 using std::unordered_map;
 using std::shared_ptr;
@@ -57,7 +69,7 @@ CastMember::CastMember(const std::filesystem::path &path) : _path(path) {
     // i.e. Drought_1233436_rock.png
 
     if (!std::regex_match(path.filename().string(), CAST_MEMBER_NAME_PATTERN)) {
-        throw std::invalid_argument(string("invalid cast member")+path.filename().string());
+        throw std::invalid_argument(string("invalid cast member ")+path.filename().string());
     }
 
     auto stem = path.stem().string();
@@ -70,9 +82,9 @@ CastMember::CastMember(const std::filesystem::path &path) : _path(path) {
             continue;
         }
 
-        if (count == 2) {
+        if (count == 1) {
             id_ss << c;    
-        } else if (count == 3) {
+        } else if (count == 2) {
             name_ss << c;
         }
 
@@ -140,6 +152,70 @@ CastLib::CastLib(int id, const string &name, unordered_map<string, shared_ptr<Ca
 
 CastLib::~CastLib() {}
 
-const std::regex CAST_MEMBER_NAME_PATTERN(R"(^[a-zA-Z]+_\d+(_[a-zA-Z ]+)?\.(png|txt)$)");
+const std::regex CAST_MEMBER_NAME_PATTERN = std::regex(R"(^[a-zA-Z0-9]+_\d+_(.+)?\.(png|txt)$)");
+
+
+void LuaRuntime::_register_member() {
+    lua_pushlightuserdata(L, this);
+    lua_pushcclosure(L, [](lua_State *L) {
+
+        CastMember *member = nullptr;
+
+        if (lua_isstring(L, 1)) {
+            const char *name = lua_tostring(L, 1);
+        }
+        else if (lua_isinteger(L, 1)) {
+            int id = lua_tointeger(L, 1);
+        }
+
+        if (member) {
+            lua_newtable(L);
+
+            lua_pushstring(L, "id");
+            lua_pushinteger(L, member->id());
+            lua_settable(L, -3);
+
+            lua_pushstring(L, "name");
+            lua_pushstring(L, member->name().c_str());
+            lua_settable(L, -3);
+            
+            lua_pushstring(L, "path");
+            lua_pushstring(L, member->path().string().c_str());
+            lua_settable(L, -3);
+
+            if (member->path().extension() == ".png") {
+                lua_pushstring(L, "image");
+                
+                Image *img = static_cast<Image *>(lua_newuserdata(L, sizeof(Image)));
+                *img = LoadImage(member->path().string().c_str());
+            
+                luaL_getmetatable(L, "image");
+                lua_setmetatable(L, -2);
+
+                lua_settable(L, -3);
+            }
+            else if (member->path().extension() == ".txt") {
+                std::ifstream file(member->path());
+                if (!file) {
+                    auto* runtime = static_cast<Orbit::Lua::LuaRuntime*>(lua_touserdata(L, lua_upvalueindex(1)));
+                    runtime->logger->error("[runtime] failed to open cast member file {FILE}", member->path().string());
+                    return 1;
+                }
+                
+                std::stringstream buffer;
+                buffer << file.rdbuf();
+                auto str = buffer.str();
+
+                lua_pushstring(L, "text");
+                lua_pushstring(L, str.c_str());
+                lua_settable(L, -3);
+            }
+        }
+        else lua_pushnil(L);
+
+        return 1;
+    }, 1);
+    lua_setglobal(L, "member");
+}
 
 };

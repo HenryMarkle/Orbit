@@ -14,6 +14,7 @@ Paths::Paths() {
 	_data = _executable / "data";
 	_logs = _executable / "logs";
 	_scripts = _executable / "scripts";
+	_config = _executable / "config.toml";
 
 	if (!exists(_logs)) create_directory(_logs);
 }

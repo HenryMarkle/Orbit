@@ -1,6 +1,7 @@
 #include <regex>
 #include <string>
 #include <sstream>
+#include <iostream>
 #include <stdexcept>
 #include <filesystem>
 #include <unordered_set>
@@ -50,22 +51,22 @@ void LuaRuntime::load_cast_libs() {
 
 	unordered_set<string> names;
 
-	stringstream ss;
-
 	for (auto &e : directory_iterator(castpath)) {
+		stringstream ss;
+
 		if (!e.is_regular_file()) continue;
 
 		const auto &path = e.path();
+		const auto pathstr = path.filename().string();
 		
-		if (!regex_match(path.filename().string(), CAST_MEMBER_NAME_PATTERN)) continue;
+		if (!regex_match(pathstr, CAST_MEMBER_NAME_PATTERN)) continue;
 
-		for (auto c : path.filename().string()) {
+		for (auto c : pathstr) {
 			if (c == '_') break;
 			ss << c;
 		}
 
 		const auto name = ss.str();
-		ss.clear();
 
 		if (names.find(name) != names.end()) continue;
 

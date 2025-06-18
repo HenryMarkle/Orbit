@@ -6,6 +6,7 @@
 #include <unordered_map>
 
 #include <Orbit/Lua/castlib.h>
+#include <Orbit/hash.h>
 #include <Orbit/paths.h>
 #include <Orbit/shaders.h>
 
@@ -30,7 +31,7 @@ private:
 	int _width, _height;
 	bool _redraw;
 	std::string _entry, _init;
-	std::unordered_map<std::string, CastLib> _castlibs;
+	std::unordered_map<std::string, CastLib, CaseInsensitiveHash, CaseInsensitiveEqual> _castlibs;
     
 	lua_State *L;
 
@@ -61,6 +62,7 @@ public:
 	inline void _set_redraw() { _redraw = true; }
 
 	inline void set_entry(const std::string &name) { _entry = name; }
+	inline const auto &castlibs() const { return _castlibs; }
 
 	RenderTexture2D viewport;
 

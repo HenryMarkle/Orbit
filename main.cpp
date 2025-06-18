@@ -5,6 +5,7 @@
 #include <Orbit/Lua/runtime.h>
 #include <Orbit/shaders.h>
 #include <Orbit/paths.h>
+#include <Orbit/config.h>
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -22,7 +23,8 @@ using std::make_unique;
 int main(int, char**) {
     shared_ptr<Orbit::Paths> paths = make_shared<Orbit::Paths>();
 	
-    std::shared_ptr<spdlog::logger> logger = nullptr;
+    shared_ptr<Orbit::Config> config = make_shared<Orbit::Config>(paths->config());
+    shared_ptr<spdlog::logger> logger = nullptr;
 	
     // Initializing logging
     try {
@@ -51,18 +53,23 @@ int main(int, char**) {
 	
 	logger->info("initializing window");
 
-    SetTargetFPS(30);
-	InitWindow(1400, 800, "Orbit Runtime");
+    SetTargetFPS(config->fps);
+	InitWindow(config->width, config->height, "Orbit Runtime");
 
     shared_ptr<Orbit::Shaders> shaders = make_shared<Orbit::Shaders>();
 
 	logger->info("initializing runtime");
 
-	auto rt = Orbit::Lua::LuaRuntime(1400, 800, paths, logger, shaders);
+	auto rt = Orbit::Lua::LuaRuntime(config->width, config->height, paths, logger, shaders);
 
 	logger->info("loading cast members");
 
     rt.load_cast_libs();
+
+    logger->debug("registered cast libraries:");
+    for (const auto &l : rt.castlibs()) {
+        logger->debug("CastLib: {0}", l.first);
+    }
 
 	logger->info("loading scripts");
 
@@ -71,8 +78,12 @@ int main(int, char**) {
     BeginDrawing();
     ClearBackground(GRAY);
     EndDrawing();
+
+    logger->info("running initial script");
     
     rt.init();
+
+    logger->info("begin window loop");
 
 	while (!WindowShouldClose()) {
         rt.process_frame();

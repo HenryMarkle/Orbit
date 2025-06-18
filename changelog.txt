@@ -1,10 +1,2 @@
-Added the following global functions:
-
-- checkKey
-- checkMouse
-- mouseWheel
-- mousePos
-- mouseDelta
-- xtra
-
-Removed `mouse_pos` function.
+- Added config.toml file for configuration.
+- Cast libraries now load properly.
