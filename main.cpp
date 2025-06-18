@@ -60,6 +60,10 @@ int main(int, char**) {
 
 	auto rt = Orbit::Lua::LuaRuntime(1400, 800, paths, logger, shaders);
 
+	logger->info("loading cast members");
+
+    rt.load_cast_libs();
+
 	logger->info("loading scripts");
 
 	rt.load_scripts();

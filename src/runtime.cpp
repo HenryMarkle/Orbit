@@ -1,7 +1,13 @@
+#include <regex>
 #include <string>
+#include <sstream>
 #include <stdexcept>
+#include <filesystem>
+#include <unordered_set>
+#include <unordered_map>
 
 #include <Orbit/Lua/runtime.h>
+#include <Orbit/Lua/castlib.h>
 #include <Orbit/paths.h>
 
 #include <spdlog/spdlog.h>
@@ -11,6 +17,16 @@ extern "C" {
     #include <lauxlib.h>
     #include <lualib.h>
 }
+
+using std::filesystem::exists;
+using std::filesystem::is_directory;
+using std::filesystem::directory_iterator;
+using std::unordered_map;
+using std::unordered_set;
+using std::string;
+using std::regex;
+using std::regex_match;
+using std::stringstream;
 
 namespace Orbit::Lua {
 
@@ -22,6 +38,44 @@ void LuaRuntime::_register_lib() {
 	_register_quad();
 	_register_image();
 	_register_utils();
+	_register_xtra();
+	_register_keyboard_events();
+	_register_mouse_events();
+}
+
+void LuaRuntime::load_cast_libs() {
+	const auto castpath = paths->data() / "Cast";
+
+	if (!exists(castpath) || !is_directory(castpath)) return;
+
+	unordered_set<string> names;
+
+	stringstream ss;
+
+	for (auto &e : directory_iterator(castpath)) {
+		if (!e.is_regular_file()) continue;
+
+		const auto &path = e.path();
+		
+		if (!regex_match(path.filename().string(), CAST_MEMBER_NAME_PATTERN)) continue;
+
+		for (auto c : path.filename().string()) {
+			if (c == '_') break;
+			ss << c;
+		}
+
+		const auto name = ss.str();
+		ss.clear();
+
+		if (names.find(name) != names.end()) continue;
+
+		names.insert(name);
+
+		auto lib = CastLib(0, name);
+		lib << castpath;
+
+		_castlibs.insert({ std::move(name), std::move(lib) });
+	}
 }
 
 void LuaRuntime::load_file(std::filesystem::path const &file) {

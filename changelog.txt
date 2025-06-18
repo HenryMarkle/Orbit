@@ -1,0 +1,10 @@
+Added the following global functions:
+
+- checkKey
+- checkMouse
+- mouseWheel
+- mousePos
+- mouseDelta
+- xtra
+
+Removed `mouse_pos` function.

@@ -3,7 +3,9 @@
 #include <memory>
 #include <string>
 #include <filesystem>
+#include <unordered_map>
 
+#include <Orbit/Lua/castlib.h>
 #include <Orbit/paths.h>
 #include <Orbit/shaders.h>
 
@@ -28,6 +30,7 @@ private:
 	int _width, _height;
 	bool _redraw;
 	std::string _entry, _init;
+	std::unordered_map<std::string, CastLib> _castlibs;
     
 	lua_State *L;
 
@@ -38,13 +41,14 @@ private:
 	void _register_quad();
 	void _register_image();
 	void _register_member();
-
 	void _register_utils();
-	void _register_lib();
-
 	void _register_mouse_events();
 	void _register_keyboard_events();
 	void _register_lingo_api();
+	void _register_xtra();
+
+
+	void _register_lib();
 	
 public:
 
@@ -59,6 +63,8 @@ public:
 	inline void set_entry(const std::string &name) { _entry = name; }
 
 	RenderTexture2D viewport;
+
+	void load_cast_libs();
 
     void load_file(std::filesystem::path const &);
 	void load_directory(std::filesystem::path const &);

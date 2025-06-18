@@ -809,7 +809,7 @@ int clear(lua_State *L) {
 
 		case 1: {
 			if (luaL_testudata(L, 1, "color")) {
-				Color *c = static_cast<Color *>(luaL_checkudata(L, 1, "point"));
+				Color *c = static_cast<Color *>(luaL_checkudata(L, 1, "color"));
 			
 				auto* runtime = static_cast<Orbit::Lua::LuaRuntime*>(lua_touserdata(L, lua_upvalueindex(1)));
 			
@@ -1044,9 +1044,6 @@ void LuaRuntime::_register_utils() {
 
 	lua_pushcfunction(L, log);
 	lua_setglobal(L, "log");
-
-	lua_pushcfunction(L, mouse_pos);
-	lua_setglobal(L, "mouse_pos");
 
 	lua_pushlightuserdata(L, this);
 	lua_pushcclosure(L, clear, 1);

@@ -14,19 +14,19 @@ using std::move;
 
 namespace Orbit::Lua {
 
-void CastMember::load() {
-    if (_loaded) return;
+// void CastMember::load() {
+//     if (_loaded) return;
     
-    _image = LoadImage(_path.string().c_str());
+//     _image = LoadImage(_path.string().c_str());
 
-    _loaded = true;
-}
+//     _loaded = true;
+// }
 
-void CastMember::unload() {
-    if (!_loaded) return;
-    UnloadImage(_image);
-    _loaded = false;
-}
+// void CastMember::unload() {
+//     if (!_loaded) return;
+//     UnloadImage(_image);
+//     _loaded = false;
+// }
 
 CastMember &CastMember::operator=(CastMember &&other) noexcept {
     if (this == &other) return *this;
@@ -35,10 +35,10 @@ CastMember &CastMember::operator=(CastMember &&other) noexcept {
     _path = move(other._path);
     
     _id = other._id;
-    _loaded = other._loaded;
+    // _loaded = other._loaded;
     
     other._id = 0;
-    other._loaded = false;
+    // other._loaded = false;
 
     return *this;
 }
@@ -48,18 +48,16 @@ CastMember::CastMember(CastMember &&other) noexcept {
     _path = move(other._path);
     
     _id = other._id;
-    _loaded = other._loaded;
+    // _loaded = other._loaded;
     
     other._id = 0;
-    other._loaded = false;
+    // other._loaded = false;
 }
-CastMember::CastMember(const std::filesystem::path &path) : _path(path), _loaded(false), _image(Image{0}) {
+CastMember::CastMember(const std::filesystem::path &path) : _path(path) {
     // i.e. Drought_1233436_rock.png
 
-    static std::regex pattern(R"(^[a-zA-Z]+_\d+(_[a-zA-Z ]+)?\.png$)");
-
-    if (!std::regex_match(path.string(), pattern)) {
-        throw std::invalid_argument(string("invalid cast member")+path.string());
+    if (!std::regex_match(path.filename().string(), CAST_MEMBER_NAME_PATTERN)) {
+        throw std::invalid_argument(string("invalid cast member")+path.filename().string());
     }
 
     auto stem = path.stem().string();
@@ -87,7 +85,7 @@ CastMember::CastMember(const std::filesystem::path &path) : _path(path), _loaded
 CastMember::CastMember(int, const string &, const std::filesystem::path &, Image) {}
 
 CastMember::~CastMember() {
-    unload();
+    // unload();
 }
 
 
@@ -141,5 +139,7 @@ CastLib::CastLib(int id, const string &name, unordered_map<string, shared_ptr<Ca
     _name(name), _id(id), _members(move(members)) {}
 
 CastLib::~CastLib() {}
+
+const std::regex CAST_MEMBER_NAME_PATTERN(R"(^[a-zA-Z]+_\d+(_[a-zA-Z ]+)?\.(png|txt)$)");
 
 };
