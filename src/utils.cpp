@@ -844,17 +844,6 @@ int log(lua_State *L) {
 	return 0;
 }
 
-int mouse_pos(lua_State *L) {
-	Vector2 *mpos = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
-	
-	*mpos = GetMousePosition();
-
-	luaL_getmetatable(L, "point");
-	lua_setmetatable(L, -2);
-
-	return 1;
-}
-
 void parse_lingo_expr_tree(lua_State *L, mp::Node *nodes) {
 	if (nodes == nullptr) {
 		lua_pushnil(L);

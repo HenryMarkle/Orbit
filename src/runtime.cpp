@@ -39,6 +39,7 @@ void LuaRuntime::_register_lib() {
 	_register_quad();
 	_register_image();
 	_register_utils();
+	_register_member();
 	_register_xtra();
 	_register_keyboard_events();
 	_register_mouse_events();

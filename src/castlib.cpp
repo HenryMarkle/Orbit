@@ -124,17 +124,19 @@ CastLib &CastLib::operator<<(const std::filesystem::path &dir) {
     for (auto &entry : std::filesystem::directory_iterator(dir)) {
         const auto &path = entry.path();
 
-        if (!entry.is_regular_file() || path.extension() != ".png") continue;
+        if (!entry.is_regular_file()) continue;
+        if (path.extension() != ".png" && path.extension() != ".txt") continue;
 
         const char *ename = path.stem().string().c_str();
 
         if (std::strncmp(name, ename, std::strlen(name))) continue;
 
         CastMember member(path);
+        std::string memname = member.name();
 
-        if (_members.count(member.name())) continue;
+        if (_members.find(memname) != _members.end()) continue;
 
-        _members[member.name()] = std::make_shared<CastMember>(std::move(member));
+        _members.insert({ memname, std::make_shared<CastMember>(std::move(member)) });
     }
 
     return *this;
@@ -159,10 +161,19 @@ void LuaRuntime::_register_member() {
     lua_pushlightuserdata(L, this);
     lua_pushcclosure(L, [](lua_State *L) {
 
+        auto* runtime = static_cast<Orbit::Lua::LuaRuntime*>(lua_touserdata(L, lua_upvalueindex(1)));
         CastMember *member = nullptr;
 
         if (lua_isstring(L, 1)) {
-            const char *name = lua_tostring(L, 1);
+            std::string name(lua_tostring(L, 1));
+
+            for (const auto &lib : runtime->castlibs()) {
+                const auto &found = lib.second.members().find(name);
+                if (found == lib.second.members().end()) continue;
+                member = found->second.get();
+                std::cout << "FOUND: " << member->path() << std::endl;
+                break;
+            }
         }
         else if (lua_isinteger(L, 1)) {
             int id = lua_tointeger(L, 1);
@@ -197,7 +208,6 @@ void LuaRuntime::_register_member() {
             else if (member->path().extension() == ".txt") {
                 std::ifstream file(member->path());
                 if (!file) {
-                    auto* runtime = static_cast<Orbit::Lua::LuaRuntime*>(lua_touserdata(L, lua_upvalueindex(1)));
                     runtime->logger->error("[runtime] failed to open cast member file {FILE}", member->path().string());
                     return 1;
                 }

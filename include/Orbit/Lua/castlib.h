@@ -58,7 +58,7 @@ public:
 
 	inline int id() const { return _id; }
 	inline const std::string &name() const { return _name; }
-	inline auto &members() { return _members; }
+	inline const auto &members() const { return _members; }
 
 	std::shared_ptr<CastMember> operator[](const std::string &);
 	CastLib &operator=(CastLib &&) noexcept;
