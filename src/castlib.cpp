@@ -47,6 +47,14 @@ int member_tostring(lua_State *L) {
     return 1;
 }
 
+int member_concat(lua_State *L) {
+	std::string a = luaL_tolstring(L, 1, nullptr);
+	std::string b = luaL_tolstring(L, 2, nullptr);
+
+	lua_pushstring(L, (a + b).c_str());
+	return 1;
+}
+
 namespace Orbit::Lua {
 
 // void CastMember::load() {
@@ -246,6 +254,9 @@ void LuaRuntime::_register_member() {
             lua_newtable(L);
             lua_pushcfunction(L, member_tostring);
             lua_setfield(L, -2, "__tostring");
+
+            lua_pushcfunction(L, member_concat);
+            lua_setfield(L, -2, "__concat");
             lua_setmetatable(L, -2);
         }
         else lua_pushnil(L);
