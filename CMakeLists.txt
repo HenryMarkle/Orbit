@@ -53,7 +53,7 @@ endif()
 # Copy the config file
 file(
   COPY
-  ${CMAKE_SOURCE_DIR}/config.json
+  ${CMAKE_SOURCE_DIR}/config.toml
   DESTINATION
   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/
 )
