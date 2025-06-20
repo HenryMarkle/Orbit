@@ -1,4 +1,5 @@
 #include <regex>
+#include <vector>
 #include <string>
 #include <sstream>
 #include <iostream>
@@ -9,6 +10,7 @@
 
 #include <Orbit/Lua/runtime.h>
 #include <Orbit/Lua/castlib.h>
+#include <Orbit/config.h>
 #include <Orbit/paths.h>
 
 #include <spdlog/spdlog.h>
@@ -43,12 +45,68 @@ void LuaRuntime::_register_lib() {
 	_register_xtra();
 	_register_keyboard_events();
 	_register_mouse_events();
+	_register_lingo_api();
 }
 
 void LuaRuntime::load_cast_libs() {
 	const auto castpath = paths->data() / "Cast";
 
 	if (!exists(castpath) || !is_directory(castpath)) return;
+
+	auto Internal_ptr 		= std::make_shared<CastLib>(CastLib::OFFSET * 0, "Internal");
+	auto customMems_ptr 	= std::make_shared<CastLib>(CastLib::OFFSET * 2, "customMems");
+	auto soundCast_ptr 		= std::make_shared<CastLib>(CastLib::OFFSET * 3, "soundCast");
+	auto levelEditor_ptr 	= std::make_shared<CastLib>(CastLib::OFFSET * 4, "levelEditor");
+	auto exportBitmaps_ptr 	= std::make_shared<CastLib>(CastLib::OFFSET * 5, "exportBitmaps");
+	auto Drought_ptr 		= std::make_shared<CastLib>(CastLib::OFFSET * 6, "Drought");
+	auto Dry_Editor_ptr 	= std::make_shared<CastLib>(CastLib::OFFSET * 7, "Dry Editor");
+	auto MSC_ptr 			= std::make_shared<CastLib>(CastLib::OFFSET * 8, "MSC");
+
+	Internal_ptr->load_members(castpath);
+	customMems_ptr->load_members(castpath);
+	soundCast_ptr->load_members(castpath);
+	levelEditor_ptr->load_members(castpath);
+	exportBitmaps_ptr->load_members(castpath);
+	Drought_ptr->load_members(castpath);
+	Dry_Editor_ptr->load_members(castpath);
+	MSC_ptr->load_members(castpath);
+
+	for (auto &m : Internal_ptr->members()) _castmembers.insert({ m->name(), m });
+	for (auto &m : customMems_ptr->members()) _castmembers.insert({ m->name(), m });
+	for (auto &m : soundCast_ptr->members()) _castmembers.insert({ m->name(), m });
+	for (auto &m : levelEditor_ptr->members()) _castmembers.insert({ m->name(), m });
+	for (auto &m : exportBitmaps_ptr->members()) _castmembers.insert({ m->name(), m });
+	for (auto &m : Drought_ptr->members()) _castmembers.insert({ m->name(), m });
+	for (auto &m : Dry_Editor_ptr->members()) _castmembers.insert({ m->name(), m });
+	for (auto &m : MSC_ptr->members()) _castmembers.insert({ m->name(), m });
+
+	_castlibs.push_back(Internal_ptr);
+	_castlib_names.insert({ Internal_ptr->name(), Internal_ptr });
+
+	_castlibs.push_back(customMems_ptr);
+	_castlib_names.insert({ customMems_ptr->name(), customMems_ptr });
+
+	_castlibs.push_back(soundCast_ptr);
+	_castlib_names.insert({ soundCast_ptr->name(), soundCast_ptr });
+
+	_castlibs.push_back(levelEditor_ptr);
+	_castlib_names.insert({ levelEditor_ptr->name(), levelEditor_ptr });
+
+	_castlibs.push_back(exportBitmaps_ptr);
+	_castlib_names.insert({ exportBitmaps_ptr->name(), exportBitmaps_ptr });
+
+	_castlibs.push_back(Drought_ptr);
+	_castlib_names.insert({ Drought_ptr->name(), Drought_ptr });
+
+	_castlibs.push_back(Dry_Editor_ptr);
+	_castlib_names.insert({ Dry_Editor_ptr->name(), Dry_Editor_ptr });
+
+	_castlibs.push_back(MSC_ptr);
+	_castlib_names.insert({ MSC_ptr->name(), MSC_ptr });
+
+	return;
+
+	// Dead code
 
 	unordered_set<string> names;
 
@@ -74,9 +132,13 @@ void LuaRuntime::load_cast_libs() {
 		names.insert(name);
 
 		auto lib = CastLib(0, name);
-		lib << castpath;
+		lib.load_members(castpath);
+		for (auto &m : lib.members()) _castmembers.insert({ m->name(), m });
 
-		_castlibs.insert({ std::move(name), std::move(lib) });
+		auto ptr = std::make_shared<CastLib>(std::move(lib));
+
+		_castlibs.push_back(ptr);
+		_castlib_names.insert({ std::move(name), ptr });
 	}
 }
 
@@ -158,12 +220,20 @@ void LuaRuntime::draw_frame() {
 	}
 }
 
-LuaRuntime::LuaRuntime(int width, int height, std::shared_ptr<Orbit::Paths> paths, std::shared_ptr<spdlog::logger> logger, std::shared_ptr<Orbit::Shaders> shaders) : 
+LuaRuntime::LuaRuntime(
+	int width, 
+	int height, 
+	std::shared_ptr<Orbit::Paths> paths, 
+	std::shared_ptr<spdlog::logger> logger, 
+	std::shared_ptr<Orbit::Shaders> shaders,
+	std::shared_ptr<Orbit::Config> config
+) : 
 	_width(width), 
 	_height(height),
 	paths(paths),
 	logger(logger),
 	shaders(shaders),
+	config(config),
 	_redraw(false),
 	_entry("exitFrame"),
 	_init("initFrame") {
@@ -181,6 +251,9 @@ LuaRuntime::LuaRuntime(int width, int height, std::shared_ptr<Orbit::Paths> path
 	BeginTextureMode(viewport);
 	ClearBackground(WHITE);
 	EndTextureMode();
+
+	_castlibs.reserve(8);
+	_castlib_names.reserve(12);
 }
 
 LuaRuntime::~LuaRuntime() {

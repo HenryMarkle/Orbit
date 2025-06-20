@@ -4,6 +4,7 @@
 #include <filesystem>
 
 #include <Orbit/Lua/runtime.h>
+#include <Orbit/Lua/random.h>
 #include <Orbit/Lua/vector.h>
 #include <Orbit/Lua/rect.h>
 #include <Orbit/Lua/quad.h>
@@ -640,11 +641,20 @@ int make_image(lua_State *L) {
 int random_seed(lua_State *L) {
 	int seed = lua_tointeger(L, 1);
 
+	auto* runtime = static_cast<Orbit::Lua::LuaRuntime*>(lua_touserdata(L, lua_upvalueindex(1)));
+
+	runtime->random = Orbit::Lua::RandomGenerator(seed);
+
 	return 0;
 }
 
 int random_gen(lua_State *L) {
-	lua_pushinteger(L, 0);
+	int max = lua_tointeger(L, 1);
+
+	if (lua_isnil(L, 1)) max = 10000;
+
+	auto* runtime = static_cast<Orbit::Lua::LuaRuntime*>(lua_touserdata(L, lua_upvalueindex(1)));
+	lua_pushinteger(L, runtime->random.next(max));
 	return 1;
 }
 
@@ -1021,10 +1031,12 @@ void LuaRuntime::_register_utils() {
 	lua_pushcclosure(L, make_image, 1);
 	lua_setglobal(L, "image");
 
-	lua_pushcfunction(L, random_seed);
+	lua_pushlightuserdata(L, this);
+	lua_pushcclosure(L, random_seed, 1);
 	lua_setglobal(L, "seed");
 
-	lua_pushcfunction(L, random_gen);
+	lua_pushlightuserdata(L, this);
+	lua_pushcclosure(L, random_gen, 1);
 	lua_setglobal(L, "random");
 
 	lua_pushlightuserdata(L, this);

@@ -60,7 +60,7 @@ int main(int, char**) {
 
 	logger->info("initializing runtime");
 
-	auto rt = Orbit::Lua::LuaRuntime(config->width, config->height, paths, logger, shaders);
+	auto rt = Orbit::Lua::LuaRuntime(config->width, config->height, paths, logger, shaders, config);
 
 	logger->info("loading cast members");
 
@@ -68,7 +68,7 @@ int main(int, char**) {
 
     logger->debug("registered cast libraries:");
     for (const auto &l : rt.castlibs()) {
-        logger->debug("CastLib: {0}", l.first);
+        logger->debug("CastLib: {0}", l->name());
     }
 
 	logger->info("loading scripts");

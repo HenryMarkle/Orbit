@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <algorithm>
 #include <memory>
+#include <vector>
 #include <string>
 #include <regex>
 
@@ -49,28 +50,37 @@ public:
 };
 
 class CastLib {
-
-	int _id;
+	
+	int _offset;
 	std::string _name;
-	std::unordered_map<std::string, std::shared_ptr<CastMember>, CaseInsensitiveHash, CaseInsensitiveEqual> _members;
-
+	std::vector<std::shared_ptr<CastMember>> _members;
+	std::unordered_map<std::string, std::shared_ptr<CastMember>, CaseInsensitiveHash, CaseInsensitiveEqual> _names;
+	
 public:
 
-	inline int id() const { return _id; }
+	static const int OFFSET = 65536;
+
+	inline int offset() const { return _offset; }
 	inline const std::string &name() const { return _name; }
 	inline const auto &members() const { return _members; }
+	inline const auto &names() const { return _names; }
+
+	std::shared_ptr<CastMember> find(const std::string &);
+	std::shared_ptr<CastMember> find(int);
 
 	std::shared_ptr<CastMember> operator[](const std::string &);
+	std::shared_ptr<CastMember> operator[](int);
+	
 	CastLib &operator=(CastLib &&) noexcept;
 	CastLib &operator=(const CastLib &) = delete;
 
 	// Load all members from a given directory.
+	void load_members(const std::filesystem::path &);
 	CastLib &operator<<(const std::filesystem::path &);
 
 	CastLib(CastLib &&) noexcept;
 	CastLib(const CastLib &) = delete;
 	CastLib(int, const std::string &);
-	CastLib(int, const std::string &, std::unordered_map<std::string, std::shared_ptr<CastMember>, CaseInsensitiveHash, CaseInsensitiveEqual> &&);
 
 	~CastLib();
 };

@@ -7,6 +7,7 @@
 #include <sstream>
 #include <fstream>
 #include <cstring>
+#include <vector>
 #include <memory>
 #include <regex>
 
@@ -23,6 +24,7 @@ using std::shared_ptr;
 using std::unique_ptr;
 using std::stringstream;
 using std::string;
+using std::vector;
 using std::move;
 
 int member_tostring(lua_State *L) {
@@ -131,24 +133,45 @@ CastMember::~CastMember() {
     // unload();
 }
 
+std::shared_ptr<CastMember> CastLib::find(const std::string &name) { return _names[name]; }
+std::shared_ptr<CastMember> CastLib::find(int index) {
+    if (index > 0 && index < _members.size()) return _members[index];
 
-shared_ptr<CastMember> CastLib::operator[](const string &name) { return _members[name]; }
+    auto offseted = index - _offset;
+    if (offseted > 0 && offseted < _members.size()) return _members[offseted];
+
+    return nullptr;
+}
+
+shared_ptr<CastMember> CastLib::operator[](const string &name) { return _names[name]; }
+shared_ptr<CastMember> CastLib::operator[](int index) {
+    if (index > 0 && index < _members.size()) return _members[index];
+
+    auto offseted = index - _offset;
+    if (offseted > 0 && offseted < _members.size()) return _members[offseted];
+
+    return nullptr;
+}
+
 CastLib &CastLib::operator=(CastLib &&other) noexcept {
     if (this == &other) return *this;
 
     _name = move(other._name);
     _members = move(other._members);
 
-    _id = other._id;
+    _offset = other._offset;
 
-    other._id = 0;
+    other._offset = 0;
 
     return *this;
 }
-CastLib &CastLib::operator<<(const std::filesystem::path &dir) {
+void CastLib::load_members(const std::filesystem::path &dir) {
     if (!std::filesystem::is_directory(dir)) {
         throw std::invalid_argument("path is not a direcotry: " + dir.string());
     }
+
+    _members.reserve(10000);
+    _names.reserve(10000 + 500);
 
     const char *name = _name.c_str();
 
@@ -165,27 +188,26 @@ CastLib &CastLib::operator<<(const std::filesystem::path &dir) {
         CastMember member(path);
         std::string memname = member.name();
 
-        if (_members.find(memname) != _members.end()) continue;
+        if (_names.find(memname) != _names.end()) continue;
 
-        _members.insert({ memname, std::make_shared<CastMember>(std::move(member)) });
+        auto shared = std::make_shared<CastMember>(std::move(member));
+
+        _members.push_back(shared);
+        _names.insert({ memname, shared });
     }
-
-    return *this;
 }
 
 CastLib::CastLib(CastLib &&other) noexcept : 
-    _id(other._id), 
+    _offset(other._offset), 
     _name(move(other._name)),
     _members(move(other._members)) {
-    other._id = 0;
+    other._offset = 0;
 }
-CastLib::CastLib(int id, const string &name) : _id(id), _name(name), _members({}) {}
-CastLib::CastLib(int id, const string &name, unordered_map<string, shared_ptr<CastMember>, CaseInsensitiveHash, CaseInsensitiveEqual> &&members) :
-    _name(name), _id(id), _members(move(members)) {}
+CastLib::CastLib(int offset, const string &name) : _offset(offset), _name(name), _members({}) {}
 
 CastLib::~CastLib() {}
 
-const std::regex CAST_MEMBER_NAME_PATTERN = std::regex(R"(^[a-zA-Z0-9]+_\d+_(.+)?\.(png|txt)$)");
+const std::regex CAST_MEMBER_NAME_PATTERN = std::regex(R"(^[a-zA-Z0-9 ]+_\d+_(.+)?\.(png|txt)$)");
 
 
 void LuaRuntime::_register_member() {
@@ -198,18 +220,81 @@ void LuaRuntime::_register_member() {
         if (lua_isstring(L, 1)) {
             std::string name(lua_tostring(L, 1));
 
-            for (const auto &lib : runtime->castlibs()) {
-                const auto &found = lib.second.members().find(name);
-                if (found == lib.second.members().end()) continue;
-                member = found->second.get();
-                break;
+            if (lua_isnil(L, 2)) {
+                auto foundCaseSensitive = runtime->castmembers().find(name);
+
+                if (foundCaseSensitive != runtime->castmembers().end()) {
+                    member = foundCaseSensitive->second.get();
+                }
+                else {
+                    for (const auto &lib : runtime->castlibs()) {
+                        const auto &found = lib->names().find(name);
+                        if (found == lib->names().end()) continue;
+                        member = found->second.get();
+                        break;
+                    }
+                }
+                
+            }
+            else if (lua_isinteger(L, 2)) {
+                int libindex = lua_tointeger(L, 2);
+
+                if (libindex > 0 && libindex <= runtime->castlibs().size()) {
+                    const auto &lib = runtime->castlibs()[libindex - 1];
+                    
+                    auto found = lib->names().find(name);
+                    
+                    if (found != lib->names().end()) {
+                        member = found->second.get();
+                    }
+                }
+            }
+            else if (lua_isstring(L, 2)) {
+                const char *libname = lua_tostring(L, 2);
+                auto libfound = runtime->castlib_names().find(libname);
+            
+                if (libfound != runtime->castlib_names().end()) {
+                    auto found = libfound->second->names().find(name);
+                    
+                    if (found != libfound->second->names().end()) {
+                        member = found->second.get();
+                    }
+                }
             }
         }
         else if (lua_isinteger(L, 1)) {
-            int id = lua_tointeger(L, 1);
+            int index = lua_tointeger(L, 1);
+
+            if (lua_isnil(L, 2)) {
+                for (const auto &lib : runtime->castlibs()) {
+                    const auto &found = lib->find(index);
+                    member = found.get();
+                    break;
+                }
+            }
+            else if (lua_isinteger(L, 2)) {
+                int libindex = lua_tointeger(L, 2);
+
+                if (libindex > 0 && libindex <= runtime->castlibs().size()) {
+                    const auto &lib = runtime->castlibs()[libindex - 1];
+                    auto found = lib->find(index);
+                    member = found.get();
+                }
+            }
+            else if (lua_isstring(L, 2)) {
+                const char *libname = lua_tostring(L, 2);
+                auto libfound = runtime->castlib_names().find(libname);
+            
+                if (libfound != runtime->castlib_names().end()) {
+                    auto found = libfound->second->find(index);
+                    member = found.get();
+                }
+            }
         }
 
         if (member) {
+            auto path = member->path().string();
+
             lua_newtable(L);
 
             lua_pushstring(L, "id");
@@ -221,14 +306,14 @@ void LuaRuntime::_register_member() {
             lua_settable(L, -3);
             
             lua_pushstring(L, "path");
-            lua_pushstring(L, member->path().string().c_str());
+            lua_pushstring(L, path.c_str());
             lua_settable(L, -3);
 
             if (member->path().extension() == ".png") {
                 lua_pushstring(L, "image");
                 
                 Image *img = static_cast<Image *>(lua_newuserdata(L, sizeof(Image)));
-                *img = LoadImage(member->path().string().c_str());
+                *img = LoadImage(path.c_str());
             
                 luaL_getmetatable(L, "image");
                 lua_setmetatable(L, -2);

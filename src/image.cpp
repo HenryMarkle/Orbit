@@ -157,6 +157,22 @@ int image_make_silhouette(lua_State *L){
 	return 1; 
 }
 
+int image_rect (lua_State *L2){
+	Image *img = static_cast<Image *>(luaL_checkudata(L2, 1, "image"));
+	
+	auto **rect = static_cast<Orbit::Lua::Rect **>(lua_newuserdata(L2, sizeof(Orbit::Lua::Rect *)));
+	*rect = new Orbit::Lua::Rect(
+		0, 0,
+		(float)img->width,
+		(float)img->height
+	);
+
+	luaL_getmetatable(L2, "rect");
+	lua_setmetatable(L2, -2);
+
+	return 1;
+}
+
 Orbit::RlExt::CopyImageParams parse_copy_params(lua_State *L, int index) {
 	luaL_checktype(L, index, LUA_TTABLE);
 
@@ -314,6 +330,7 @@ int image_index(lua_State *L) {
 	if (std::strcmp(field, "width") == 0) lua_pushnumber(L, img->width);
 	else if (std::strcmp(field, "height") == 0) lua_pushnumber(L, img->height);
 	else if (std::strcmp(field, "clear") == 0) lua_pushcfunction(L, image_fill);
+	else if (std::strcmp(field, "rect") == 0) lua_pushcfunction(L, image_rect);
 	else if (std::strcmp(field, "copyPixels") == 0) {
 		lua_pushlightuserdata(L, runtime);
 		lua_pushcclosure(L, image_copy_pixels, 1);
