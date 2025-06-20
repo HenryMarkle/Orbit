@@ -488,10 +488,21 @@ void LuaRuntime::_register_quad() {
 		return 1;
 	};
 
+	const auto concat = [](lua_State *L) {
+		std::string a = luaL_tolstring(L, 1, nullptr);
+		std::string b = luaL_tolstring(L, 2, nullptr);
+
+		lua_pushstring(L, (a + b).c_str());
+		return 1;
+	};
+
 	luaL_newmetatable(L, "quad");
 
 	lua_pushcfunction(L, tostring);
 	lua_setfield(L, -2, "__tostring");
+
+	lua_pushcfunction(L, concat);
+	lua_setfield(L, -2, "__concat");
 
 	lua_pushcfunction(L, read);
 	lua_setfield(L, -2, "__index");

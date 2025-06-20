@@ -118,6 +118,13 @@ int image_tostring(lua_State *L) {
 	return 1;
 }
 
+int image_concat(lua_State *L) {
+	std::string a = luaL_tolstring(L, 1, nullptr);
+	std::string b = luaL_tolstring(L, 2, nullptr);
+
+	lua_pushstring(L, (a + b).c_str());
+	return 1;
+}
 
 int image_make_silhouette(lua_State *L){ 
 	Image *img = static_cast<Image *>(luaL_checkudata(L, 1, "image"));
@@ -459,6 +466,9 @@ void LuaRuntime::_register_image() {
 
 	lua_pushcfunction(L, image_tostring);
 	lua_setfield(L, -2, "__tostring");
+
+	lua_pushcfunction(L, image_concat);
+	lua_setfield(L, -2, "__concat");
 
 	lua_pushlightuserdata(L, this);
 	lua_pushcclosure(L, image_index, 1);

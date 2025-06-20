@@ -21,8 +21,31 @@ extern "C" {
 using std::unordered_map;
 using std::shared_ptr;
 using std::unique_ptr;
+using std::stringstream;
 using std::string;
 using std::move;
+
+int member_tostring(lua_State *L) {
+    int tableindex = lua_gettop(L);
+
+    stringstream ss;
+
+    ss << "member(";
+        
+    lua_getfield(L, tableindex, "name");
+    if (!lua_isnil(L, -1)) {
+        const char *name = lua_tostring(L, -1);
+        ss << '"' << name << '"';
+    }
+    lua_pop(L, 1);
+
+    ss << ')';
+    auto str = ss.str();
+
+    lua_pushstring(L, str.c_str());
+    
+    return 1;
+}
 
 namespace Orbit::Lua {
 
@@ -171,7 +194,6 @@ void LuaRuntime::_register_member() {
                 const auto &found = lib.second.members().find(name);
                 if (found == lib.second.members().end()) continue;
                 member = found->second.get();
-                std::cout << "FOUND: " << member->path() << std::endl;
                 break;
             }
         }
@@ -220,6 +242,11 @@ void LuaRuntime::_register_member() {
                 lua_pushstring(L, str.c_str());
                 lua_settable(L, -3);
             }
+
+            lua_newtable(L);
+            lua_pushcfunction(L, member_tostring);
+            lua_setfield(L, -2, "__tostring");
+            lua_setmetatable(L, -2);
         }
         else lua_pushnil(L);
 
