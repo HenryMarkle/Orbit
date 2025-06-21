@@ -1,1 +1,2 @@
 - Added `member.importFileInto()`
+- Added `split()` for strings
