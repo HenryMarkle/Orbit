@@ -1,6 +1,7 @@
 #include <cstring>
-#include <iostream>
 #include <iomanip>
+#include <sstream>
+#include <iostream>
 #include <filesystem>
 
 #include <Orbit/Lua/runtime.h>
@@ -897,7 +898,6 @@ void parse_lingo_expr_tree(lua_State *L, mp::Node *nodes) {
 			parse_lingo_expr_tree(L, list->elements[i].get());
 			lua_rawseti(L, -2, i+1);
 		}
-		lua_settable(L, -3);
 		return;
 	}
 
@@ -907,8 +907,8 @@ void parse_lingo_expr_tree(lua_State *L, mp::Node *nodes) {
 		for (auto &p : props->map) {
 			lua_pushstring(L, p.first.c_str());
 			parse_lingo_expr_tree(L, p.second.get());
+			lua_settable(L, -3);
 		}
-		lua_settable(L, -3);
 		return;
 	}
 
@@ -994,6 +994,49 @@ int parse_lingo_expr(lua_State *L) {
 	return 1;
 }
 
+int string_split(lua_State *L) {
+	if (lua_isnil(L, 1) || lua_isnil(L, 2)) return luaL_error(L, "invalid 'split()' arguments");
+
+	const char *text = lua_tostring(L, 1);
+	const char *sepr = lua_tostring(L, 2);
+	
+	std::stringstream ss;
+
+	lua_newtable(L);
+
+	size_t counter = 1, index = 0, prev_index = 0;
+
+	auto text_length = std::strlen(text);
+	auto sepr_length = std::strlen(sepr);
+	
+	while (index < text_length) {
+		if (std::strncmp(sepr, text + index, sepr_length) != 0) {
+			ss.write(text + index, 1);
+			index ++;
+			continue;
+		}
+
+		lua_pushstring(L, ss.str().c_str());
+		lua_rawseti(L, -2, counter++);
+
+		index += sepr_length;
+		prev_index = index;
+
+		ss.clear(); ss.str("");
+	}
+
+	if (index == text_length) {
+		lua_pushstring(L, ss.str().c_str());
+		lua_rawseti(L, -2, counter);
+	}
+	else if (counter == 1) {
+		lua_pushstring(L, text);
+		lua_rawseti(L, -2, counter);
+	}
+
+	return 1;
+}
+
 namespace Orbit::Lua {
 
 void LuaRuntime::_register_utils() {
@@ -1052,6 +1095,9 @@ void LuaRuntime::_register_utils() {
 	
 	lua_pushcfunction(L, parse_lingo_expr);
 	lua_setglobal(L, "fromLingo");
+
+	lua_pushcfunction(L, string_split);
+	lua_setglobal(L, "split");
 }
 
 };

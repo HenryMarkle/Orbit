@@ -1,18 +1,1 @@
-- Properly implemented `seed()` and `random()`
-- Added the following global variables:
-    - _global
-        - clearGlobals()
-    - _movie
-    - _player
-    - _key
-        - keypressed()
-        - keydown()
-    - _mouse
-        - mouseDown()
-        - leftmouseDown()
-        - rightmouseDown()
-        - mouseLoc
-    - _system
-        - milliseconds
-        - deskTopRectList
-- reworked how cast libraries and members load.
+- Added `member.importFileInto()`
