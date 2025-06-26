@@ -41,14 +41,11 @@ void LuaRuntime::_register_lib() {
 	_register_quad();
 	_register_image();
 	_register_utils();
-	_register_member();
 	_register_xtra();
-	_register_keyboard_events();
-	_register_mouse_events();
 	_register_lingo_api();
 }
 
-void LuaRuntime::load_cast_libs() {
+void LuaRuntime::_load_cast_libs() {
 	const auto castpath = paths->data() / "Cast";
 
 	if (!exists(castpath) || !is_directory(castpath)) return;
@@ -71,14 +68,14 @@ void LuaRuntime::load_cast_libs() {
 	Dry_Editor_ptr->load_members(castpath);
 	MSC_ptr->load_members(castpath);
 
-	for (auto &m : Internal_ptr->members()) _castmembers.insert({ m->name(), m });
-	for (auto &m : customMems_ptr->members()) _castmembers.insert({ m->name(), m });
-	for (auto &m : soundCast_ptr->members()) _castmembers.insert({ m->name(), m });
-	for (auto &m : levelEditor_ptr->members()) _castmembers.insert({ m->name(), m });
-	for (auto &m : exportBitmaps_ptr->members()) _castmembers.insert({ m->name(), m });
-	for (auto &m : Drought_ptr->members()) _castmembers.insert({ m->name(), m });
-	for (auto &m : Dry_Editor_ptr->members()) _castmembers.insert({ m->name(), m });
-	for (auto &m : MSC_ptr->members()) _castmembers.insert({ m->name(), m });
+	for (auto &m : Internal_ptr->members()) _castmembers.insert({ m->name, m });
+	for (auto &m : customMems_ptr->members()) _castmembers.insert({ m->name, m });
+	for (auto &m : soundCast_ptr->members()) _castmembers.insert({ m->name, m });
+	for (auto &m : levelEditor_ptr->members()) _castmembers.insert({ m->name, m });
+	for (auto &m : exportBitmaps_ptr->members()) _castmembers.insert({ m->name, m });
+	for (auto &m : Drought_ptr->members()) _castmembers.insert({ m->name, m });
+	for (auto &m : Dry_Editor_ptr->members()) _castmembers.insert({ m->name, m });
+	for (auto &m : MSC_ptr->members()) _castmembers.insert({ m->name, m });
 
 	_castlibs.push_back(Internal_ptr);
 	_castlib_names.insert({ Internal_ptr->name(), Internal_ptr });
@@ -133,7 +130,7 @@ void LuaRuntime::load_cast_libs() {
 
 		auto lib = CastLib(0, name);
 		lib.load_members(castpath);
-		for (auto &m : lib.members()) _castmembers.insert({ m->name(), m });
+		for (auto &m : lib.members()) _castmembers.insert({ m->name, m });
 
 		auto ptr = std::make_shared<CastLib>(std::move(lib));
 
@@ -244,6 +241,7 @@ LuaRuntime::LuaRuntime(
 	luaopen_math(L);
 	luaopen_string(L);
 
+	_load_cast_libs();
 	_register_lib();
 
 	viewport = LoadRenderTexture(1400, 800);

@@ -64,8 +64,6 @@ int main(int, char**) {
 
 	logger->info("loading cast members");
 
-    rt.load_cast_libs();
-
     logger->debug("registered cast libraries:");
     for (const auto &l : rt.castlibs()) {
         logger->debug("CastLib: {0}", l->name());

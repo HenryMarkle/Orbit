@@ -1,2 +1,1 @@
-- Added `member.importFileInto()`
-- Added `split()` for strings
+- Added _movie.window

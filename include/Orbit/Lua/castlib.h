@@ -18,21 +18,15 @@ extern const std::regex CAST_MEMBER_NAME_PATTERN;
 
 class CastMember {
 
-	int _id;
-	std::string _name;
-	std::filesystem::path _path;
-	// Image _image;
-	// std::string _text;
 	// bool _loaded;
-
+	
 public:
 	
-	inline int id() const { return _id; }
-	inline const std::string &name() const { return _name; }
-	inline const std::filesystem::path &path() const { return _path; }
-	// inline Image image() const { return _image; }
-	// inline std::string &text() { return _text; }
-	// inline bool loaded() const { return _loaded; }
+	int id;
+	std::string name;
+	std::filesystem::path path;
+	// Image image;
+	// std::string text;
 
 	// void load();
 	// void unload();

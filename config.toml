@@ -1,3 +1,8 @@
 width = 1400
 height = 800
 fps = 15
+
+# replace all line endings (`\r`, `\n`, `\r\n`) in any input text with `\n`
+replace_newlines = true
+
+verbose_debugging = true
