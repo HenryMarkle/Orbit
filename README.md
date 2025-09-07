@@ -9,16 +9,18 @@ A custom Lua runtime designed to emulated some of Adobe Director's Lingo runtime
 - CMake
 - Git
 
-First, clone the project, create a `build/` folder, then inside that folder run:
+First, clone the project, create a `build/` folder, then run the command:
 ```bash
-cmake .. -DGPU=1
+cmake --preset "GCC"
+```
+Then run:
+
+```bash
+cmake --build --preset "GCC"
 ```
 
-Then back to the root directory:
+Replace "GCC" with "MSVC" if you're on Windows.
 
-```bash
-cmake --build build
-```
 ---
 
 The output executable will be in **/build/bin**

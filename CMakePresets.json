@@ -6,7 +6,7 @@
 		"displayName": "GCC",
 		"description": "GNU compiler",
 		"binaryDir": "${sourceDir}/build/",
-		"cacheVariables": [
+		"cacheVariables": {
 			"CMAKE_BUILD_TYPE": "Debubg",
 			"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
 			"CMAKE_RUNTIME_OUTPUT_DIRECTORY": "${sourceDir}/build/",
@@ -14,7 +14,7 @@
 			"CMAKE_C_COMPILER": "/usr/bin/gcc",
 			"CMAKE_CXX_COMPILER": "/usr/bin/g++"
 
-		]
+		}
 	},
 	{
             "name": "MSVC",
@@ -41,6 +41,11 @@
             "displayName": "MSVC - Debug",
             "configurePreset": "MSVC",
             "configuration": "Debug"
-        }
+        },
+	{
+		"name": "GCC",
+		"displayName": "GCC - Debug",
+		"configurePreset": "GCC"
+	}
     ]
 }
