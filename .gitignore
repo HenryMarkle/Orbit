@@ -1,0 +1,8 @@
+/build
+/.vscode
+/.vs
+/.cache
+/out
+
+compile_commands.json
+

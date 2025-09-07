@@ -1,0 +1,17 @@
+width = 1400
+height = 800
+fps = 15
+splashscreen = true
+
+# The name of the script file to start executing from.
+entry_file = "entryPoint"
+
+# The name of the function to execute in the entry file.
+entry_func = "exitFrame"
+
+initial_diclaimer = true
+
+# Not configurable yet.
+# inverse_biliear_interpolation = true
+
+verbose_debugging = true

@@ -1,0 +1,98 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*' # trigger on version tags like v0.1.0
+  workflow_dispatch: # allow manual triggering
+
+jobs:
+  build-linux:
+    name: Build on Linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake g++ make libx11-dev libgl1-mesa-dev libxcursor-dev libxrandr-dev libxi-dev
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: Orbit-linux
+          path: build/bin/Orbit
+
+  build-windows:
+    name: Build on Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC Developer Command Prompt
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: Orbit-windows
+          path: build/bin/Orbit.exe
+
+  release:
+    name: Create Release
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Read version
+        id: version
+        run: echo "VERSION=$(cat version.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Read changelog
+        id: changelog
+        run: |
+          DESC=$(cat changelog.txt)
+          echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
+          echo "$DESC" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Zip artifacts
+        run: |
+          cd dist
+          zip -r Orbit-linux.zip Orbit-linux
+          zip -r Orbit-windows.zip Orbit-windows
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: Orbit v${{ steps.version.outputs.VERSION }}
+          body: ${{ env.RELEASE_BODY }}
+          files: |
+            dist/Orbit-linux.zip
+            dist/Orbit-windows.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

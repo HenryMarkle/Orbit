@@ -1,0 +1,518 @@
+#include <cstring>
+#include <math.h>
+#include <sstream>
+#include <iostream>
+#include <iomanip>
+
+#include <Orbit/Lua/runtime.h>
+#include <Orbit/Lua/quad.h>
+
+#include <xsimd/xsimd.hpp>
+#include <xsimd/config/xsimd_config.hpp>
+#include <xsimd/types/xsimd_avx2_register.hpp>
+
+#include <raylib.h>
+#include <raymath.h>
+
+extern "C" {
+    #include "lua.h"
+    #include "lauxlib.h"
+    #include "lualib.h"
+}
+
+static constexpr const char *META = "quad";
+
+static inline Vector2 rotate_vector(Vector2 v, float degrees, Vector2 p) {
+	float rad = fmodf(degrees, 360.0f) * PI / 180.0f;
+
+	float sinr = sinf(rad);
+	float cosr = cosf(rad);
+
+	float dx = v.x - p.x;
+	float dy = v.y - p.y;
+
+	return Vector2{
+		p.x + dx * cosr - dy * sinr,
+		p.y + dx * sinr + dy * cosr
+	};
+}
+
+static inline std::ostream &operator<<(std::ostream &out, Vector2 v) {
+	return out << "point(" 
+		<< std::setprecision(4) << v.x << ", "
+		<< std::setprecision(4) << v.y
+		<< ')';
+}
+
+static int quad_ipairs_next(lua_State* L) {
+    void* data = luaL_checkudata(L, 1, META);
+    lua_Integer i = luaL_checkinteger(L, 2);
+    ++i;
+
+    if (i <= 4) {  // example: 4 elements
+        lua_pushinteger(L, i);
+        lua_pushnumber(L, ((float*)data)[i - 1]); // value
+        return 2;
+    }
+
+    return 0; // end of iteration
+}
+
+static int quad_ipairs(lua_State* L) {
+    luaL_checkudata(L, 1, META);
+
+    lua_pushcfunction(L, quad_ipairs_next); 
+    lua_pushvalue(L, 1);
+    lua_pushinteger(L, 0); 
+    return 3;
+}
+
+namespace Orbit::Lua {
+
+bool Quad::operator==(const Quad &q) const {
+	return 
+		topleft == q.topleft && 			
+		topright == q.topright && 
+		bottomright == q.bottomright && 
+		bottomleft == q.bottomleft;
+}
+
+bool Quad::operator!=(const Quad &q) const {
+	return 
+		topleft != q.topleft || 
+		topright != q.topright || 
+		bottomright != q.bottomright || 
+		bottomleft != q.bottomleft;
+}
+
+Quad Quad::operator+(const Quad &q) const {
+	using batch_type = xsimd::batch<float, xsimd::sse2>;
+
+	constexpr std::size_t simd_width = batch_type::size;
+
+	Quad output;
+
+	for (std::size_t i = 0; i < 8; i += simd_width) {
+        batch_type a = batch_type::load_aligned(this->data + i);
+        batch_type b = batch_type::load_aligned(q.data + i);
+        batch_type r = a + b;
+        r.store_aligned(output.data + i);
+    }
+	
+	return output;
+}
+	
+Quad Quad::operator-(const Quad &q) const {
+	using batch_type = xsimd::batch<float, xsimd::sse2>;
+        
+	constexpr std::size_t simd_width = batch_type::size;
+
+	Quad output;
+
+	for (std::size_t i = 0; i < 8; i += simd_width) {
+        batch_type a = batch_type::load_aligned(this->data + i);
+        batch_type b = batch_type::load_aligned(q.data + i);
+        batch_type r = a - b;
+        r.store_aligned(output.data + i);
+    }
+
+	return output;
+}
+
+Quad Quad::operator+(const Vector2 &p) const {
+	using batch_type = xsimd::batch<float, xsimd::sse2>;
+        
+	constexpr std::size_t simd_width = batch_type::size;
+
+	alignas(32) float v_broadcast[8];
+    for (std::size_t i = 0; i < 8; i += 2) {
+        v_broadcast[i] = p.x;
+        v_broadcast[i + 1] = p.y;
+    }
+
+	Quad output;
+
+	for (std::size_t i = 0; i < 8; i += simd_width) {
+        batch_type a = batch_type::load_aligned(this->data + i);
+        batch_type b = batch_type::load_aligned(v_broadcast + i);
+        batch_type r = a + b;
+        r.store_aligned(output.data + i);
+    }
+
+	return output;
+}
+	
+Quad Quad::operator-(const Vector2 &p) const {
+	using batch_type = xsimd::batch<float, xsimd::sse2>;
+        
+	constexpr std::size_t simd_width = batch_type::size;
+
+	alignas(32) float v_broadcast[8];
+    for (std::size_t i = 0; i < 8; i += 2) {
+        v_broadcast[i] = p.x;
+        v_broadcast[i + 1] = p.y;
+    }
+
+	Quad output;
+
+	for (std::size_t i = 0; i < 8; i += simd_width) {
+        batch_type a = batch_type::load_aligned(this->data + i);
+        batch_type b = batch_type::load_aligned(v_broadcast + i);
+        batch_type r = a - b;
+        r.store_aligned(output.data + i);
+    }
+
+	return output;
+}
+
+Quad Quad::operator*(const int i) const {
+	using batch_type = xsimd::batch<float, xsimd::sse2>;
+
+	constexpr std::size_t simd_width = batch_type::size;
+
+	auto s = batch_type::broadcast(static_cast<float>(i));
+
+	Quad output;
+
+	for (std::size_t i = 0; i < 8; i += simd_width) {
+        batch_type a = batch_type::load_aligned(this->data + i);
+        batch_type r = a * s;
+        r.store_aligned(output.data + i);
+    }
+	
+	return output;
+}
+
+Quad Quad::operator/(const int i) const {
+	using batch_type = xsimd::batch<float, xsimd::sse2>;
+
+	constexpr std::size_t simd_width = batch_type::size;
+
+	auto s = batch_type::broadcast(static_cast<float>(i));
+
+	Quad output;
+
+	for (std::size_t i = 0; i < 8; i += simd_width) {
+        batch_type a = batch_type::load_aligned(this->data + i);
+        batch_type r = a / s;
+        r.store_aligned(output.data + i);
+    }
+	
+	return output;
+}
+
+Quad Quad::operator*(const float i) const {
+	using batch_type = xsimd::batch<float, xsimd::sse2>;
+
+	constexpr std::size_t simd_width = batch_type::size;
+
+	auto s = batch_type::broadcast(i);
+
+	Quad output;
+
+	for (std::size_t i = 0; i < 8; i += simd_width) {
+        batch_type a = batch_type::load_aligned(this->data + i);
+        batch_type r = a * s;
+        r.store_aligned(output.data + i);
+    }
+	
+	return output;
+}
+
+Quad Quad::operator/(const float i) const {
+	using batch_type = xsimd::batch<float, xsimd::sse2>;
+
+	constexpr std::size_t simd_width = batch_type::size;
+
+	auto s = batch_type::broadcast(i);
+
+	Quad output;
+
+	for (std::size_t i = 0; i < 8; i += simd_width) {
+        batch_type a = batch_type::load_aligned(this->data + i);
+        batch_type r = a / s;
+        r.store_aligned(output.data + i);
+    }
+	
+	return output;
+}
+
+Quad &Quad::operator=(const Quad &other) {
+	if (this == &other) return *this;
+	std::memcpy(data, other.data, sizeof(float) * 8);
+	return *this;
+}
+
+Quad::Quad(const Quad &other) {
+	std::memcpy(data, other.data, sizeof(float) * 8);
+}
+
+Vector2 Quad::center() const { return (topleft + topright + bottomright + bottomleft) / 4; }
+
+Quad Quad::rotate(float degrees, const Vector2 &center) const {
+	// TODO: Use SIMD
+	
+	return Quad(
+			rotate_vector(topleft, degrees, center),
+			rotate_vector(topright, degrees, center),
+			rotate_vector(bottomright, degrees, center),
+			rotate_vector(bottomleft, degrees, center)
+	);
+}
+
+Quad Quad::operator>>(float degrees) const { return rotate(degrees, center()); }
+
+std::string Quad::ToString() const {
+	std::stringstream ss;
+
+	ss 
+		<< "quad(" 
+		<< topleft << ", " 
+		<< topright << ", "
+		<< bottomright << ", "
+		<< bottomleft << ")";
+
+	return ss.str();
+}
+
+void LuaRuntime::_register_quad() {
+	const auto make = [](lua_State *L) {
+		float x = luaL_checknumber(L, 1);
+		float y = luaL_checknumber(L, 2);
+	
+		Vector2 *p = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
+
+		p->x = x;
+		p->y = y;
+
+		luaL_getmetatable(L, "point");
+		lua_setmetatable(L, -2);
+	
+		return 1;
+	};
+
+	const auto read = [](lua_State *L) {
+		Quad *q = static_cast<Quad *>(luaL_checkudata(L, 1, META));
+		
+		if (lua_type(L, 2) == LUA_TNUMBER) {
+			Vector2 *p = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
+			*p = *reinterpret_cast<Vector2 *>(q + (static_cast<size_t>(lua_tointeger(L, 2)) % 4));
+
+			luaL_getmetatable(L, "point");
+			lua_setmetatable(L, -2);
+
+			return 1;
+		}
+
+
+		const char *field = luaL_checkstring(L, 2);
+
+		if (std::strcmp(field, "topleft") == 0) {
+			Vector2 *p = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
+			*p = q->topleft;
+			luaL_getmetatable(L, "point");
+			lua_setmetatable(L, -2);
+		}
+		else if (std::strcmp(field, "topright") == 0) {
+			Vector2 *p = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
+			*p = q->topright;
+			luaL_getmetatable(L, "point");
+			lua_setmetatable(L, -2);
+		}
+		else if (std::strcmp(field, "bottomright") == 0) {
+			Vector2 *p = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
+			*p = q->bottomright;
+			luaL_getmetatable(L, "point");
+			lua_setmetatable(L, -2);
+		}
+		else if (std::strcmp(field, "bottomleft") == 0) {
+			Vector2 *p = static_cast<Vector2 *>(lua_newuserdata(L, sizeof(Vector2)));
+			*p = q->bottomleft;
+			luaL_getmetatable(L, "point");
+			lua_setmetatable(L, -2);
+		}
+		else lua_pushnil(L);
+
+		return 1;
+	};
+
+	const auto write = [](lua_State *L) {
+		Quad *q = static_cast<Quad *>(luaL_checkudata(L, 1, META));
+
+		const char *field = luaL_checkstring(L, 2);
+		Vector2 *value = static_cast<Vector2 *>(luaL_checkudata(L, 3, "point"));
+
+		
+		if (std::strcmp(field, "topleft") == 0) {
+			q->topleft = *value;
+		}
+		else if (std::strcmp(field, "topright") == 0) {
+			q->topright = *value;
+		}
+		else if (std::strcmp(field, "bottomright") == 0) {
+			q->bottomright = *value;	
+		}
+		else if (std::strcmp(field, "bottomleft") == 0) {
+			q->bottomleft = *value;	
+		}
+		else return luaL_error(L, "invalid field '%s' on quad", field);		
+
+		return 0;
+	};
+
+	const auto add = [](lua_State *L) {
+		Quad a = *static_cast<Quad *>(luaL_checkudata(L, 1, META));
+		void *rhs = nullptr;
+
+		if ((rhs = luaL_testudata(L, 2, META)) != nullptr) {
+			Quad b = *static_cast<Quad *>(rhs);
+	
+			Quad *res = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
+	
+			new (res) Quad(a + b);
+	
+			luaL_getmetatable(L, META);
+			lua_setmetatable(L, -2);
+		} else if ((rhs = luaL_testudata(L, 2, "point")) != nullptr) {
+			Vector2 b = *static_cast<Vector2 *>(rhs);
+	
+			Quad *res = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
+	
+			new (res) Quad(a + b);
+	
+			luaL_getmetatable(L, META);
+			lua_setmetatable(L, -2);
+		} else return luaL_error(L, "invalid right side operand");
+
+
+		return 1;
+	};
+
+	const auto subtract = [](lua_State *L) {
+		Quad a = *static_cast<Quad *>(luaL_checkudata(L, 1, META));
+		void *rhs = nullptr;
+
+		if ((rhs = luaL_testudata(L, 2, META)) != nullptr) {
+			Quad b = *static_cast<Quad *>(rhs);
+	
+			Quad *res = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
+	
+			new (res) Quad(a - b);
+	
+			luaL_getmetatable(L, META);
+			lua_setmetatable(L, -2);
+		} else if ((rhs = luaL_testudata(L, 2, "point")) != nullptr) {
+			Vector2 b = *static_cast<Vector2 *>(rhs);
+	
+			Quad *res = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
+	
+			new (res) Quad(a - b);
+	
+			luaL_getmetatable(L, META);
+			lua_setmetatable(L, -2);
+		} else return luaL_error(L, "invalid right side operand");
+
+		return 1;
+	};
+
+	const auto multiply = [](lua_State *L) {
+		Quad a = *static_cast<Quad *>(luaL_checkudata(L, 1, META));
+		float b = static_cast<float>(luaL_checknumber(L, 2));
+		
+		Quad *res = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
+		new (res) Quad(a * b);
+
+		luaL_getmetatable(L, META);
+		lua_setmetatable(L, -2);
+
+		return 1;
+	};
+	
+	const auto divide = [](lua_State *L) {
+		Quad a = *static_cast<Quad *>(luaL_checkudata(L, 1, META));
+		float b = static_cast<float>(luaL_checknumber(L, 2));
+		
+		Quad *res = static_cast<Quad *>(lua_newuserdata(L, sizeof(Quad)));
+		new (res) Quad(a/b);
+
+		luaL_getmetatable(L, META);
+		lua_setmetatable(L, -2);
+
+		return 1;
+	};
+
+	const auto equals = [](lua_State *L) {
+		Quad a = *static_cast<Quad *>(luaL_checkudata(L, 1, META));
+		Quad b = *static_cast<Quad *>(luaL_checkudata(L, 2, META));
+		
+		bool res = a == b;
+
+		lua_pushboolean(L, res);
+
+		return 1;
+	};
+
+	const auto tostring = [](lua_State *L) {
+		if (lua_isnil(L, 1)) {
+			lua_pushstring(L, "nil");
+			return 1;
+		}
+		
+		Quad *a = static_cast<Quad *>(luaL_checkudata(L, 1, META));
+		auto str = a->ToString();
+		lua_pushstring(L, str.c_str());
+		return 1;
+	};
+
+	const auto concat = [](lua_State *L) {
+		std::string a = lua_tolstring(L, 1, nullptr);
+		std::string b = lua_tolstring(L, 2, nullptr);
+
+		lua_pushstring(L, (a + b).c_str());
+		return 1;
+	};
+
+	luaL_newmetatable(L, META);
+
+	lua_pushcfunction(L, tostring);
+	lua_setfield(L, -2, "__tostring");
+
+	lua_pushcfunction(L, concat);
+	lua_setfield(L, -2, "__concat");
+
+	lua_pushcfunction(L, read);
+	lua_setfield(L, -2, "__index");
+
+	lua_pushcfunction(L, write);
+	lua_setfield(L, -2, "__newindex");
+
+	lua_pushcfunction(L, add);
+	lua_setfield(L, -2, "__add");
+
+	lua_pushcfunction(L, subtract);
+	lua_setfield(L, -2, "__sub");
+
+	lua_pushcfunction(L, multiply);
+	lua_setfield(L, -2, "__mul");
+
+	lua_pushcfunction(L, divide);
+	lua_setfield(L, -2, "__div");
+
+	lua_pushcfunction(L, equals);
+	lua_setfield(L, -2, "__eq");
+
+	// lua_pushcfunction(L, quad_ipairs);
+	// lua_setfield(L, -2, "__ipairs");
+
+	// lua_pushcfunction(L, [](lua_State *L) {
+	// 	Quad *ptr = *static_cast<Quad **>(lua_touserdata(L, 1));
+	// 	delete ptr;
+
+	// 	return 0;
+	// });
+	// lua_setfield(L, -2, "__gc");
+
+	lua_pop(L, 1);
+}
+
+};
