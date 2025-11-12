@@ -6,6 +6,8 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 
+set(PROJECT_DEPS_DIR "${CMAKE_SOURCE_DIR}/libs")
+
 if(MSVC)
   add_compile_options(/utf-8)
 endif()
@@ -46,7 +48,7 @@ endif()
 add_dependencies(luajit luajit_build)
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/libs/spdlog)
-add_subdirectory(${CMAKE_SOURCE_DIR}/libs/raylib)
+# add_subdirectory(${CMAKE_SOURCE_DIR}/libs/raylib)
 add_subdirectory(${CMAKE_SOURCE_DIR}/libs/xsimd)
 add_subdirectory(${CMAKE_SOURCE_DIR}/libs/MobitParser)
 
@@ -64,6 +66,42 @@ target_include_directories(
   PRIVATE include 
   ${CMAKE_SOURCE_DIR}/libs/tomlplusplus/include
 )
+
+# raylib
+
+if(WIN32)
+	set(RAYLIB_PATH "${PROJECT_DEPS_DIR}/raylib/win64_mingw-w64")
+	set(RAYLIB_INCLUDE "${RAYLIB_PATH}/include")
+	set(RAYLIB_LIB "${RAYLIB_PATH}/lib/libraylib.a")
+else()
+	set(RAYLIB_PATH "${PROJECT_DEPS_DIR}/raylib/linux_amd64")
+	set(RAYLIB_INCLUDE "${RAYLIB_PATH}/include")
+	set(RAYLIB_LIB "${RAYLIB_PATH}/lib/libraylib.a")
+endif()
+
+# target_include_directories(Tiler
+# 	PRIVATE ${PROJECT_DEPS_DIR}/tomlcpp/include
+# )
+
+add_library(raylib STATIC IMPORTED)
+set_target_properties(raylib PROPERTIES
+	IMPORTED_LOCATION "${RAYLIB_LIB}"
+	INTERFACE_INCLUDE_DIRECTORIES "${RAYLIB_INCLUDE}"
+)
+
+if(WIN32)
+    set_target_properties(raylib PROPERTIES
+        INTERFACE_LINK_LIBRARIES "winmm;gdi32;opengl32"
+    )
+elseif(APPLE)
+    set_target_properties(raylib PROPERTIES
+        INTERFACE_LINK_LIBRARIES "-framework OpenGL;-framework Cocoa;-framework IOKit;-framework CoreVideo"
+    )
+else()
+    set_target_properties(raylib PROPERTIES
+        INTERFACE_LINK_LIBRARIES "m;pthread;dl;rt;X11"
+    )
+endif()
 
 target_link_libraries(Orbit PRIVATE luajit raylib spdlog xsimd MobitParser)
 
@@ -105,69 +143,104 @@ target_compile_definitions(
   BUILD_TYPE="${CMAKE_BUILD_TYPE}"
 )
 
-if(MSVC)
-  # Copy the config file
-  file(
-    COPY
-    ${CMAKE_SOURCE_DIR}/config.toml
-    DESTINATION
-    ${PROJECT_ARTIFACT_DIRECTORY}/
-  )
+# Copy the config file
 
-  # Copy the splash screen image
-  file(
-    COPY
-    ${CMAKE_SOURCE_DIR}/splashscreen.png
-    DESTINATION
-    ${PROJECT_ARTIFACT_DIRECTORY}/
-  )
+file(
+  COPY
+  ${CMAKE_SOURCE_DIR}/config.toml
+  DESTINATION
+  ${CMAKE_BINARY_DIR}/
+)
 
-  # Copy the icon image
-  file(
-    COPY
-    ${CMAKE_SOURCE_DIR}/icon.png
-    DESTINATION
-    ${PROJECT_ARTIFACT_DIRECTORY}/
-  )
+# Copy the splashscreen image
 
-  # Copy the font file
-  add_custom_target(copy_config ALL
+file(
+  COPY
+  ${CMAKE_SOURCE_DIR}/splashscreen.png
+  DESTINATION
+  ${CMAKE_BINARY_DIR}/
+)
+
+# Copy the icon image
+
+file(
+  COPY
+  ${CMAKE_SOURCE_DIR}/icon.png
+  DESTINATION
+  ${CMAKE_BINARY_DIR}/
+)
+
+# Copy the font file
+
+add_custom_target(copy_config ALL
     COMMAND ${CMAKE_COMMAND} -E copy
             ${CMAKE_SOURCE_DIR}/FiraCode-Regular.ttf
-            ${PROJECT_ARTIFACT_DIRECTORY}/font.ttf
-  )
-else()
-  # Copy the config file
-  file(
-    COPY
-    ${CMAKE_SOURCE_DIR}/config.toml
-    DESTINATION
-    ${PROJECT_ARTIFACT_DIRECTORY}/
-  )
+            ${CMAKE_BINARY_DIR}/font.ttf
+)
 
-  # Copy the splash screen image
-  file(
-    COPY
-    ${CMAKE_SOURCE_DIR}/splashscreen.png
-    DESTINATION
-    ${PROJECT_ARTIFACT_DIRECTORY}/
-  )
+# if(MSVC)
+#   # Copy the config file
+#   file(
+#     COPY
+#     ${CMAKE_SOURCE_DIR}/config.toml
+#     DESTINATION
+#     ${PROJECT_ARTIFACT_DIRECTORY}/
+#   )
 
-  # Copy the icon image
-  file(
-    COPY
-    ${CMAKE_SOURCE_DIR}/icon.png
-    DESTINATION
-    ${PROJECT_ARTIFACT_DIRECTORY}/
-  )
+#   # Copy the splash screen image
+#   file(
+#     COPY
+#     ${CMAKE_SOURCE_DIR}/splashscreen.png
+#     DESTINATION
+#     ${PROJECT_ARTIFACT_DIRECTORY}/
+#   )
 
-  # Copy the font file
-  add_custom_target(copy_config ALL
-    COMMAND ${CMAKE_COMMAND} -E copy
-            ${CMAKE_SOURCE_DIR}/FiraCode-Regular.ttf
-            ${PROJECT_ARTIFACT_DIRECTORY}/font.ttf
-  )
-endif()
+#   # Copy the icon image
+#   file(
+#     COPY
+#     ${CMAKE_SOURCE_DIR}/icon.png
+#     DESTINATION
+#     ${PROJECT_ARTIFACT_DIRECTORY}/
+#   )
+
+#   # Copy the font file
+#   add_custom_target(copy_config ALL
+#     COMMAND ${CMAKE_COMMAND} -E copy
+#             ${CMAKE_SOURCE_DIR}/FiraCode-Regular.ttf
+#             ${PROJECT_ARTIFACT_DIRECTORY}/font.ttf
+#   )
+# else()
+#   # Copy the config file
+#   file(
+#     COPY
+#     ${CMAKE_SOURCE_DIR}/config.toml
+#     DESTINATION
+#     ${PROJECT_ARTIFACT_DIRECTORY}/
+#   )
+
+#   # Copy the splash screen image
+#   file(
+#     COPY
+#     ${CMAKE_SOURCE_DIR}/splashscreen.png
+#     DESTINATION
+#     ${PROJECT_ARTIFACT_DIRECTORY}/
+#   )
+
+#   # Copy the icon image
+#   file(
+#     COPY
+#     ${CMAKE_SOURCE_DIR}/icon.png
+#     DESTINATION
+#     ${PROJECT_ARTIFACT_DIRECTORY}/
+#   )
+
+#   # Copy the font file
+#   add_custom_target(copy_config ALL
+#     COMMAND ${CMAKE_COMMAND} -E copy
+#             ${CMAKE_SOURCE_DIR}/FiraCode-Regular.ttf
+#             ${PROJECT_ARTIFACT_DIRECTORY}/font.ttf
+#   )
+# endif()
 
 
 # Embed the changelog file
