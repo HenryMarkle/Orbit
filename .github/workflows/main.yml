@@ -24,11 +24,37 @@ jobs:
       - name: Build
         run: cmake --build build --config Release
 
+      - name: Prepare distribution
+        run: |
+          # Copy lua/ported to build/scripts
+          cp -r lua/ported build/scripts
+          
+          # Copy config.toml
+          cp config.toml build/
+          
+          # Copy and rename font
+          cp FiraCode-Regular.ttf build/font.ttf
+          
+          # Clone Drizzle.Data community branch
+          git clone --depth 1 --branch community https://github.com/SlimeCubed/Drizzle.Data.git build/data
+          
+          # Create logs directory
+          mkdir -p build/logs
+          
+          # Copy splash screen and icon
+          cp splashscreen.png build/
+          cp icon.png build/
+
+      - name: Create distribution zip
+        run: |
+          cd build
+          zip -r ../Orbit-linux.zip Orbit logs/ data/ font.ttf scripts/ splashscreen.png icon.png config.toml
+
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
           name: Orbit-linux
-          path: build/Orbit
+          path: Orbit-linux.zip
 
   build-windows:
     name: Build on Windows
@@ -47,11 +73,37 @@ jobs:
       - name: Build
         run: cmake --build build --config Release
 
+      - name: Prepare distribution
+        run: |
+          # Copy lua/ported to build/scripts
+          xcopy /E /I lua\ported build\scripts
+          
+          # Copy config.toml
+          copy config.toml build\
+          
+          # Copy and rename font
+          copy FiraCode-Regular.ttf build\font.ttf
+          
+          # Clone Drizzle.Data community branch
+          git clone --depth 1 --branch community https://github.com/SlimeCubed/Drizzle.Data.git build\data
+          
+          # Create logs directory
+          if not exist build\logs mkdir build\logs
+          
+          # Copy splash screen and icon
+          copy splashscreen.png build\
+          copy icon.png build\
+
+      - name: Create distribution zip
+        run: |
+          cd build
+          7z a ..\Orbit-windows.zip Orbit.exe logs\ data\ font.ttf scripts\ splashscreen.png icon.png config.toml
+
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
           name: Orbit-windows
-          path: build/bin/Orbit.exe
+          path: Orbit-windows.zip
 
   release:
     name: Create Release
@@ -79,12 +131,6 @@ jobs:
         with:
           path: dist
 
-      - name: Zip artifacts
-        run: |
-          cd dist
-          zip -r Orbit-linux.zip Orbit-linux
-          zip -r Orbit-windows.zip Orbit-windows
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -92,7 +138,7 @@ jobs:
           name: Orbit v${{ steps.version.outputs.VERSION }}
           body: ${{ env.RELEASE_BODY }}
           files: |
-            dist/Orbit-linux.zip
-            dist/Orbit-windows.zip
+            dist/Orbit-linux/Orbit-linux.zip
+            dist/Orbit-windows/Orbit-windows.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
