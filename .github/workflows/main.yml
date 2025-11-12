@@ -2,8 +2,8 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*' # trigger on version tags like v0.1.0
+    # tags:
+    #   - 'v*' # trigger on version tags like v0.1.0
   workflow_dispatch: # allow manual triggering
 
 jobs:
