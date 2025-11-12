@@ -28,7 +28,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Orbit-linux
-          path: build/bin/Orbit
+          path: build/Orbit
 
   build-windows:
     name: Build on Windows
